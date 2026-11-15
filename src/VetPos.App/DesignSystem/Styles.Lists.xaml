@@ -1,0 +1,130 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ds="clr-namespace:VetPos.App.DesignSystem">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="Tokens.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Table rows: 48 px, hairline between rows, selected row = accent tint + 3 px accent bar. -->
+  <Style x:Key="TableRow" TargetType="ListBoxItem">
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="16,0,16,0" />
+    <Setter Property="MinHeight" Value="{StaticResource Height.Row}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Grid x:Name="Root" Background="{DynamicResource Brush.Transparent}" SnapsToDevicePixels="True">
+            <Border x:Name="Fill" />
+            <Border x:Name="Bar" Width="3" HorizontalAlignment="Left" Background="{DynamicResource Brush.Accent}" Visibility="Collapsed" />
+            <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Line}" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="{DynamicResource Brush.Hover}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+              <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="Table" TargetType="ListBox">
+    <Setter Property="Background" Value="{DynamicResource Brush.Transparent}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="ItemContainerStyle" Value="{StaticResource TableRow}" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+    <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+    <Setter Property="KeyboardNavigation.TabNavigation" Value="Once" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBox">
+          <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}" CanContentScroll="True">
+            <ItemsPresenter />
+          </ScrollViewer>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Column header row above a Table. -->
+  <Style x:Key="TableHeader" TargetType="Border">
+    <Setter Property="Padding" Value="16,0,16,0" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
+    <Setter Property="TextElement.FontSize" Value="{StaticResource FontSize.Caption}" />
+    <Setter Property="TextElement.FontWeight" Value="Medium" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Background}" />
+  </Style>
+
+
+  <!-- Vertical section menu (Settings): icon + label, chosen = accent tint. Set the icon with ds:Ds.Icon. -->
+  <Style x:Key="SideTab" TargetType="RadioButton">
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Margin" Value="0,0,0,2" />
+    <Setter Property="FontSize" Value="{StaticResource FontSize.Body}" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Root" CornerRadius="{StaticResource Radius.Button}" Padding="12,12" Background="{DynamicResource Brush.Transparent}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Icon" Text="{TemplateBinding ds:Ds.Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="20" Width="26" VerticalAlignment="Center" />
+              <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Hover}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.AccentText}" />
+              <Setter Property="FontWeight" Value="SemiBold" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Option card in choice dialogs (price picker, price decisions). -->
+  <Style x:Key="ChoiceItem" TargetType="ListBoxItem">
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Border x:Name="Root" CornerRadius="{StaticResource Radius.Button}" BorderThickness="1" Padding="{TemplateBinding Padding}"
+                  BorderBrush="{DynamicResource Brush.Line}" Background="{DynamicResource Brush.Surface}">
+            <ContentPresenter />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.SurfaceSubtle}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="2" />
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

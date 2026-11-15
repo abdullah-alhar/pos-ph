@@ -1,0 +1,151 @@
+<UserControl x:Class="VetPos.App.Features.Assistant.AssistantPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:local="clr-namespace:VetPos.App.Features.Assistant"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance local:AssistantViewModel}">
+  <!-- The compact AI drawer (Ctrl+J). The header (title, new chat, close) is drawn by the shell. -->
+  <DockPanel>
+    <!-- Not ready -->
+    <Border DockPanel.Dock="Top" CornerRadius="10" Padding="14,10" Margin="16,0,16,10" Background="{DynamicResource Brush.WarningSoft}"
+            Visibility="{Binding Offline, Converter={StaticResource NullToCollapsed}}">
+      <StackPanel>
+        <TextBlock Text="{Binding Offline}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Warning}" FontWeight="Medium" />
+        <Button Style="{StaticResource Button.Small}" Content="Open AI settings" HorizontalAlignment="Left" Margin="0,8,0,0" Focusable="False"
+                Command="{Binding OpenAiSettingsCommand}" Visibility="{Binding IsOwner, Converter={StaticResource BoolToVisibility}}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Send box -->
+    <Border DockPanel.Dock="Bottom" Margin="16,8,16,16" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Brush.LineStrong}"
+            Background="{DynamicResource Brush.Surface}" Padding="4">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Width="40" MinHeight="40" Padding="0" VerticalAlignment="Bottom"
+                Command="{Binding AskCommand}" ToolTip="Send (Enter)" Focusable="False">
+          <TextBlock Text="&#xE724;" FontFamily="{StaticResource Font.Icons}" FontSize="15" />
+        </Button>
+        <TextBox x:Name="InputBox" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="Transparent"
+                 ds:Ds.Placeholder="Ask about sales, stock or profit…" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" MinHeight="40"
+                 VerticalContentAlignment="Center" Margin="0,0,4,0" />
+      </DockPanel>
+    </Border>
+
+    <Grid>
+      <!-- Empty: what to ask -->
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel Margin="16,8,16,8">
+          <TextBlock Text="Answers come only from your shop's data. The AI never changes anything." Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" />
+          <TextBlock Text="Try" Style="{StaticResource Text.Overline}" Margin="0,18,0,8" />
+          <ItemsControl ItemsSource="{Binding Suggestions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Content="{Binding}" Margin="0,0,0,6" HorizontalContentAlignment="Left" MinHeight="42" Focusable="False"
+                        Command="{Binding DataContext.AskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Conversation -->
+      <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Focusable="False" Visibility="{Binding IsEmpty, Converter={StaticResource InverseBoolToVisibility}}">
+        <StackPanel Margin="16,4,16,8">
+          <ItemsControl ItemsSource="{Binding Messages}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type local:ChatMessage}">
+                <Border x:Name="Bubble" CornerRadius="12" Padding="12,9" Margin="0,0,36,10" HorizontalAlignment="Left"
+                        Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="14" LineHeight="20" />
+                    <TextBlock Text="{Binding ToolsUsed}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Visibility="{Binding ToolsUsed, Converter={StaticResource NullToCollapsed}}" />
+                    <ItemsControl ItemsSource="{Binding Actions}" Margin="0,8,0,0">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:ActionCard}">
+                          <Border x:Name="Card" CornerRadius="10" BorderThickness="1.5" BorderBrush="{DynamicResource Brush.Accent}" Background="{DynamicResource Brush.Background}"
+                                  Padding="12,10" Margin="0,4,0,0">
+                            <StackPanel>
+                              <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="Icon" Text="&#xE70F;" FontFamily="{StaticResource Font.Icons}" FontSize="13" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="8,0,0,0" TextWrapping="Wrap" />
+                              </StackPanel>
+                              <ItemsControl ItemsSource="{Binding Lines}" Margin="0,6,0,0">
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="13" Margin="0,1" />
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                              <StackPanel x:Name="Buttons" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Style="{StaticResource Button.Primary}" Content="Confirm" MinHeight="34" Focusable="False"
+                                        Command="{Binding DataContext.ConfirmActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                <Button Style="{StaticResource Button.Subtle}" Content="Cancel" MinHeight="34" Margin="6,0,0,0" Focusable="False"
+                                        Command="{Binding DataContext.CancelActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                              </StackPanel>
+                              <ProgressBar x:Name="Busy" IsIndeterminate="True" Height="3" Margin="0,10,0,0" Visibility="Collapsed" />
+                              <TextBlock x:Name="Result" Text="{Binding Result}" TextWrapping="Wrap" FontWeight="Medium" Margin="0,8,0,0"
+                                         Visibility="{Binding Result, Converter={StaticResource NullToCollapsed}}" />
+                            </StackPanel>
+                          </Border>
+                          <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsWaiting}" Value="False">
+                              <Setter TargetName="Buttons" Property="Visibility" Value="Collapsed" />
+                              <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="busy">
+                              <Setter TargetName="Busy" Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="done">
+                              <Setter TargetName="Icon" Property="Text" Value="&#xE73E;" />
+                              <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource Brush.Success}" />
+                              <Setter TargetName="Result" Property="Foreground" Value="{DynamicResource Brush.Success}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="failed">
+                              <Setter TargetName="Icon" Property="Text" Value="&#xE783;" />
+                              <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                              <Setter TargetName="Result" Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="cancelled">
+                              <Setter TargetName="Card" Property="Opacity" Value="0.6" />
+                            </DataTrigger>
+                          </DataTemplate.Triggers>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding Links}" Margin="0,4,0,0">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Button Style="{StaticResource Button.Small}" Content="{Binding Label}" Margin="0,4,6,0" Focusable="False" ds:Ds.Icon="&#xE8A7;"
+                                  Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding FromUser}" Value="True">
+                    <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right" />
+                    <Setter TargetName="Bubble" Property="Margin" Value="36,0,0,10" />
+                    <Setter TargetName="Bubble" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                    <Setter TargetName="Bubble" Property="BorderThickness" Value="0" />
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding IsError}" Value="True">
+                    <Setter TargetName="Bubble" Property="Background" Value="{DynamicResource Brush.WarningSoft}" />
+                    <Setter TargetName="Bubble" Property="BorderThickness" Value="0" />
+                  </DataTrigger>
+                </DataTemplate.Triggers>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Margin="2,0,0,10" Visibility="{Binding IsThinking, Converter={StaticResource BoolToVisibility}}">
+            <ProgressBar IsIndeterminate="True" Width="60" Height="3" VerticalAlignment="Center" />
+            <TextBlock Text="Looking at your data…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</UserControl>

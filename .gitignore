@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+publish/
+dist/
+Releases/
+TestResults/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

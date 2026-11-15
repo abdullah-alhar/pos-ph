@@ -1,0 +1,176 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+                    xmlns:controls="clr-namespace:VetPos.App.DesignSystem.Controls">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="Tokens.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- The AI mark: a big four-point spark with a small one (like the old ShopPOS assistant). -->
+  <Geometry x:Key="Geometry.AiSpark">M12 2 C12.7 7.6 16.4 11.3 22 12 C16.4 12.7 12.7 16.4 12 22 C11.3 16.4 7.6 12.7 2 12 C7.6 11.3 11.3 7.6 12 2 Z M19.5 1 C19.7 2.7 20.8 3.8 22.5 4 C20.8 4.2 19.7 5.3 19.5 7 C19.3 5.3 18.2 4.2 16.5 4 C18.2 3.8 19.3 2.7 19.5 1 Z</Geometry>
+  <LinearGradientBrush x:Key="Brush.AiGradient" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#2BC3B7" Offset="0" />
+    <GradientStop Color="#0B7A75" Offset="0.55" />
+    <GradientStop Color="#0A5C7A" Offset="1" />
+  </LinearGradientBrush>
+  <!-- Spark in the gradient (on light backgrounds). -->
+  <Style x:Key="AiSpark" TargetType="Path">
+    <Setter Property="Data" Value="{StaticResource Geometry.AiSpark}" />
+    <Setter Property="Fill" Value="{StaticResource Brush.AiGradient}" />
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="SnapsToDevicePixels" Value="False" />
+  </Style>
+  <!-- White spark (on the gradient button). -->
+  <Style x:Key="AiSpark.White" TargetType="Path" BasedOn="{StaticResource AiSpark}">
+    <Setter Property="Fill" Value="White" />
+  </Style>
+  <!-- Round floating "Ask AI" button. -->
+  <Style x:Key="AiFab" TargetType="Button">
+    <Setter Property="Width" Value="56" />
+    <Setter Property="Height" Value="56" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="ToolTip" Value="Ask AI (Ctrl+J)" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+            <Grid.RenderTransform><ScaleTransform x:Name="S" /></Grid.RenderTransform>
+            <Ellipse Fill="{StaticResource Brush.AiGradient}" />
+            <Path Style="{StaticResource AiSpark.White}" Width="24" Height="24" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Opacity" Value="0.92" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Trigger.EnterActions>
+                <BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetName="S" Storyboard.TargetProperty="ScaleX" To="0.94" Duration="0:0:0.1" />
+                  <DoubleAnimation Storyboard.TargetName="S" Storyboard.TargetProperty="ScaleY" To="0.94" Duration="0:0:0.1" />
+                </Storyboard></BeginStoryboard>
+              </Trigger.EnterActions>
+              <Trigger.ExitActions>
+                <BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetName="S" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.16" />
+                  <DoubleAnimation Storyboard.TargetName="S" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.16" />
+                </Storyboard></BeginStoryboard>
+              </Trigger.ExitActions>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="Card" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}" />
+    <Setter Property="Padding" Value="{StaticResource Pad.Card}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+  <!-- Badge outline variant (barcode, unit). -->
+  <Style x:Key="Badge.Outline" TargetType="Border">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Small}" />
+    <Setter Property="Padding" Value="6,1,6,2" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+    <Setter Property="TextElement.FontSize" Value="{StaticResource FontSize.Tiny}" />
+    <Setter Property="TextElement.FontWeight" Value="Medium" />
+  </Style>
+
+  <!-- Raised surface for dialogs and sheets. -->
+  <Style x:Key="Sheet" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Sheet}" />
+    <Setter Property="Padding" Value="{StaticResource Pad.Card}" />
+    <Setter Property="Effect" Value="{StaticResource Shadow.Sheet}" />
+  </Style>
+
+  <!-- Drop-down lists under a search box: redrawn on every key press, so no blur shadow (fast on any PC). -->
+  <Style x:Key="Sheet.Flat" TargetType="Border" BasedOn="{StaticResource Sheet}">
+    <Setter Property="Effect" Value="{x:Null}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.LineStrong}" />
+    <Setter Property="CornerRadius" Value="12" />
+  </Style>
+
+  <Style x:Key="Divider" TargetType="Border">
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Line}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <!-- Status pills. Colour carries meaning only: in stock / low / out or error. -->
+  <Style x:Key="Badge" TargetType="Border">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Small}" />
+    <Setter Property="Padding" Value="6,1,6,2" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background" Value="{DynamicResource Brush.SurfaceSunken}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+    <Setter Property="TextElement.FontSize" Value="{StaticResource FontSize.Caption}" />
+    <Setter Property="TextElement.FontWeight" Value="Medium" />
+  </Style>
+  <Style x:Key="Badge.Success" TargetType="Border" BasedOn="{StaticResource Badge}">
+    <Setter Property="Background" Value="{DynamicResource Brush.SuccessSoft}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.Success}" />
+  </Style>
+  <Style x:Key="Badge.Warning" TargetType="Border" BasedOn="{StaticResource Badge}">
+    <Setter Property="Background" Value="{DynamicResource Brush.WarningSoft}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style x:Key="Badge.Danger" TargetType="Border" BasedOn="{StaticResource Badge}">
+    <Setter Property="Background" Value="{DynamicResource Brush.DangerSoft}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.Danger}" />
+  </Style>
+  <Style x:Key="Badge.Accent" TargetType="Border" BasedOn="{StaticResource Badge}">
+    <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Brush.AccentText}" />
+  </Style>
+
+  <!-- Empty / loading / error state: never a blank screen. -->
+  <Style TargetType="controls:StateView">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="controls:StateView">
+          <StackPanel MaxWidth="380" HorizontalAlignment="Center">
+            <Border x:Name="IconWell" Width="80" Height="80" CornerRadius="40" HorizontalAlignment="Center"
+                    Background="{DynamicResource Brush.AccentSoft}">
+              <TextBlock x:Name="IconText" Text="{TemplateBinding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="34"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Accent}" />
+            </Border>
+            <ProgressBar x:Name="Busy" Width="160" Height="4" Margin="0,8,0,0" IsIndeterminate="True" Visibility="Collapsed" />
+            <TextBlock Margin="0,16,0,0" Text="{TemplateBinding Title}" HorizontalAlignment="Center" TextAlignment="Center"
+                       FontSize="{StaticResource FontSize.Large}" FontWeight="Medium"
+                       Foreground="{DynamicResource Brush.Text}" TextWrapping="Wrap" />
+            <TextBlock Margin="0,6,0,0" Text="{TemplateBinding Message}" HorizontalAlignment="Center" TextAlignment="Center"
+                       FontSize="{StaticResource FontSize.Body}" Foreground="{DynamicResource Brush.TextSecondary}" TextWrapping="Wrap" />
+            <ContentPresenter Margin="0,20,0,0" HorizontalAlignment="Center" Content="{TemplateBinding Action}" />
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Tone" Value="Error">
+              <Setter TargetName="IconWell" Property="Background" Value="{DynamicResource Brush.DangerSoft}" />
+              <Setter TargetName="IconText" Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Loading">
+              <Setter TargetName="IconWell" Property="Visibility" Value="Collapsed" />
+              <Setter TargetName="Busy" Property="Visibility" Value="Visible" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

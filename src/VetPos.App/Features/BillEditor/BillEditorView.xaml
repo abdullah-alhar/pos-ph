@@ -1,0 +1,465 @@
+<UserControl x:Class="VetPos.App.Features.BillEditor.BillEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:printing="clr-namespace:VetPos.Printing;assembly=VetPos.Printing"
+             xmlns:local="clr-namespace:VetPos.App.Features.BillEditor"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance local:BillEditorViewModel}">
+  <UserControl.InputBindings>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}" />
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}" />
+    <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}" />
+    <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomByCommand}" CommandParameter="0.25" />
+    <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomByCommand}" CommandParameter="-0.25" />
+    <KeyBinding Gesture="Alt+Up" Command="{Binding MoveCommand}" CommandParameter="up" />
+    <KeyBinding Gesture="Alt+Down" Command="{Binding MoveCommand}" CommandParameter="down" />
+  </UserControl.InputBindings>
+  <UserControl.Resources>
+    <Style x:Key="Prop" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+      <Setter Property="Margin" Value="2,14,0,6" />
+    </Style>
+    <Style x:Key="PanelTitle" TargetType="TextBlock" BasedOn="{StaticResource Text.Overline}">
+      <Setter Property="Margin" Value="4,0,0,10" />
+    </Style>
+    <!-- One "Add" tile: icon over label, like the old Receipt Studio -->
+    <Style x:Key="AddTile" TargetType="Button">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Margin" Value="0,0,6,6" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Root" CornerRadius="10" Padding="6,10" Background="{DynamicResource Brush.Surface}"
+                    BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1">
+              <ContentPresenter HorizontalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Root" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97" /></Setter.Value></Setter>
+                <Setter TargetName="Root" Property="RenderTransformOrigin" Value="0.5,0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </UserControl.Resources>
+
+  <DockPanel>
+    <!-- ═════════ Top bar ═════════ -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1" Padding="20,10">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="Bill editor" FontSize="{StaticResource FontSize.Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Border Style="{StaticResource Badge.Warning}" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="Not saved" />
+          </Border>
+          <Border Style="{StaticResource Badge.Success}" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="{Binding IsDirty, Converter={StaticResource InverseBoolToVisibility}}">
+            <TextBlock Text="Saved" />
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Button Style="{StaticResource Button.Icon}" FontFamily="{StaticResource Font.Icons}" Content="&#xE7A7;" ToolTip="Undo (Ctrl+Z)" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" />
+          <Button Style="{StaticResource Button.Icon}" FontFamily="{StaticResource Font.Icons}" Content="&#xE7A6;" ToolTip="Redo (Ctrl+Y)" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Margin="4,0,14,0" />
+          <ComboBox x:Name="TemplateBox" ItemsSource="{Binding Templates}" Width="170" MinHeight="36" SelectionChanged="OnTemplate"
+                    ToolTip="Start from a ready design" />
+          <Border Background="{DynamicResource Brush.SurfaceSunken}" CornerRadius="10" Padding="3" Margin="14,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <RadioButton Style="{StaticResource Segment}" GroupName="Paper" Content="80 mm" IsChecked="{Binding Narrow, Converter={StaticResource Not}, Mode=OneWay}" />
+              <RadioButton Style="{StaticResource Segment}" GroupName="Paper" Content="58 mm" IsChecked="{Binding Narrow}" />
+            </StackPanel>
+          </Border>
+          <Border Background="{DynamicResource Brush.SurfaceSunken}" CornerRadius="10" Padding="3" Margin="14,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Button.Subtle}" FontFamily="{StaticResource Font.Icons}" Content="&#xE71F;" MinHeight="30" Width="32" Padding="0" ToolTip="Smaller (Ctrl −)"
+                      Command="{Binding ZoomByCommand}" CommandParameter="-0.25" />
+              <TextBlock Text="{Binding ZoomText}" Width="46" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Medium" />
+              <Button Style="{StaticResource Button.Subtle}" FontFamily="{StaticResource Font.Icons}" Content="&#xE8A3;" MinHeight="30" Width="32" Padding="0" ToolTip="Bigger (Ctrl +)"
+                      Command="{Binding ZoomByCommand}" CommandParameter="0.25" />
+            </StackPanel>
+          </Border>
+          <ToggleButton Content="Printer view" IsChecked="{Binding PrinterView}" Margin="14,0,0,0" MinHeight="36" Padding="12,0"
+                        ToolTip="Exactly the characters the printer gets" />
+          <ToggleButton Content="My latest bill" IsChecked="{Binding UseLatestBill}" Margin="8,0,0,0" MinHeight="36" Padding="12,0"
+                        ToolTip="Show the design with your last real bill instead of a sample" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Content="Test print" ds:Ds.Icon="&#xE749;" Command="{Binding TestPrintCommand}" Margin="0,0,8,0" />
+          <Button Style="{StaticResource Button.Primary}" Content="Save" ds:Ds.KeyHint="Ctrl+S" Command="{Binding SaveCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="268" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="360" />
+      </Grid.ColumnDefinitions>
+
+      <!-- ═════════ Left: add + layers ═════════ -->
+      <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,1,0">
+        <DockPanel Margin="14,16,14,12">
+          <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Add to the bill" Style="{StaticResource PanelTitle}" />
+            <ItemsControl ItemsSource="{Binding PieceTypes}" Margin="0,0,-6,0">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:PieceTypeOption}">
+                  <Button Style="{StaticResource AddTile}" ToolTip="{Binding Hint}"
+                          Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Type}">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="18" HorizontalAlignment="Center" Foreground="{DynamicResource Brush.Accent}" />
+                      <TextBlock Text="{Binding Label}" FontSize="{StaticResource FontSize.Caption}" HorizontalAlignment="Center" Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid Margin="0,14,0,8">
+              <TextBlock Text="Layers, top to bottom" Style="{StaticResource PanelTitle}" Margin="4,0,0,0" VerticalAlignment="Center" />
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource Button.Subtle}" MinHeight="28" Width="28" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="11" Content="&#xE70E;" ToolTip="Move up (Alt+↑)" Command="{Binding MoveCommand}" CommandParameter="up" />
+                <Button Style="{StaticResource Button.Subtle}" MinHeight="28" Width="28" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="11" Content="&#xE70D;" ToolTip="Move down (Alt+↓)" Command="{Binding MoveCommand}" CommandParameter="down" />
+                <Button Style="{StaticResource Button.Subtle}" MinHeight="28" Width="28" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="12" Content="&#xE8C8;" ToolTip="Duplicate (Ctrl+D)" Command="{Binding DuplicateCommand}" />
+                <Button Style="{StaticResource Button.Subtle}" MinHeight="28" Width="28" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="12" Content="&#xE74D;" ToolTip="Remove (Del)" Command="{Binding RemoveCommand}" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+          <ListBox x:Name="PieceList" ItemsSource="{Binding Pieces}" SelectedItem="{Binding Selected}" Style="{StaticResource Table}"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem" BasedOn="{StaticResource TableRow}">
+                <Setter Property="MinHeight" Value="38" />
+                <Setter Property="Padding" Value="10,0,4,0" />
+              </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="{x:Type printing:ReceiptPiece}">
+                <Grid>
+                  <TextBlock Text="{Binding Converter={StaticResource PieceName}}" VerticalAlignment="Center" Margin="0,0,30,0" TextTrimming="CharacterEllipsis">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Hidden}" Value="True">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="TextDecorations" Value="Strikethrough" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                  <Button HorizontalAlignment="Right" Style="{StaticResource Button.Subtle}" MinHeight="26" Width="26" Padding="0" Focusable="False"
+                          FontFamily="{StaticResource Font.Icons}" FontSize="12" ToolTip="Hide / show"
+                          Command="{Binding DataContext.ToggleHiddenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                    <TextBlock>
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                          <Setter Property="Text" Value="&#xE7B3;" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding Hidden}" Value="True"><Setter Property="Text" Value="&#xED1A;" /></DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                  </Button>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- ═════════ Centre: the paper, at real size ═════════ -->
+      <Grid Grid.Column="1" Background="{DynamicResource Brush.SurfaceSunken}" MouseLeftButtonDown="OnPaperBackground">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Focusable="False">
+          <StackPanel HorizontalAlignment="Center" Margin="32,28">
+            <Border Background="White" Padding="14,20" CornerRadius="3" Effect="{StaticResource Shadow.Sheet}" HorizontalAlignment="Center">
+              <Border.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}" />
+              </Border.LayoutTransform>
+              <Grid Width="{Binding Narrow, Converter={StaticResource PaperWidth}}" TextElement.Foreground="#111111">
+                <!-- Designed view -->
+                <ItemsControl ItemsSource="{Binding Preview}" Visibility="{Binding PrinterView, Converter={StaticResource InverseBoolToVisibility}}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:PreviewLine}">
+                      <Border x:Name="Row" MouseLeftButtonDown="OnPreviewClick" Cursor="Hand" Background="Transparent" Margin="-6,0" Padding="6,0" CornerRadius="2">
+                        <Grid>
+                          <TextBlock x:Name="Text" Text="{Binding Text}" FontFamily="Consolas" FontSize="10.3" FontWeight="Normal"
+                                     HorizontalAlignment="{Binding Align, Converter={StaticResource AlignToHorizontal}}" TextWrapping="NoWrap"
+                                     LineStackingStrategy="BlockLineHeight" LineHeight="13.5">
+                            <TextBlock.LayoutTransform><ScaleTransform ScaleX="{Binding ScaleX}" ScaleY="{Binding ScaleY}" /></TextBlock.LayoutTransform>
+                          </TextBlock>
+                          <Image x:Name="Logo" Visibility="Collapsed" MaxHeight="64" MaxWidth="180" Stretch="Uniform" Margin="0,2,0,6"
+                                 HorizontalAlignment="{Binding Align, Converter={StaticResource AlignToHorizontal}}"
+                                 Source="{Binding DataContext.LogoImage, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                          <StackPanel x:Name="Code" Visibility="Collapsed" HorizontalAlignment="Center" Margin="0,4">
+                            <ContentControl Content="{Binding Text, Converter={StaticResource BarcodePreview}}" Focusable="False" Width="200" Height="40" />
+                            <TextBlock Text="{Binding Text}" FontFamily="Consolas" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                          </StackPanel>
+                          <Grid x:Name="Qr" Visibility="Collapsed" Width="80" Height="80" HorizontalAlignment="Center" Margin="0,4">
+                            <Border BorderBrush="#111111" BorderThickness="5" />
+                            <TextBlock Text="&#xED14;" FontFamily="{StaticResource Font.Icons}" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Grid>
+                          <Border x:Name="Mark" BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" CornerRadius="2" Margin="-6,0" Visibility="Collapsed" IsHitTestVisible="False" />
+                        </Grid>
+                      </Border>
+                      <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Bold}" Value="True"><Setter TargetName="Text" Property="FontWeight" Value="Bold" /></DataTrigger>
+                        <DataTrigger Binding="{Binding Underline}" Value="True"><Setter TargetName="Text" Property="TextDecorations" Value="Underline" /></DataTrigger>
+                        <DataTrigger Binding="{Binding Invert}" Value="True">
+                          <Setter TargetName="Text" Property="Background" Value="#111111" />
+                          <Setter TargetName="Text" Property="Foreground" Value="White" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="logo">
+                          <Setter TargetName="Text" Property="Visibility" Value="Collapsed" />
+                          <Setter TargetName="Logo" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="barcode">
+                          <Setter TargetName="Text" Property="Visibility" Value="Collapsed" />
+                          <Setter TargetName="Code" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="qr">
+                          <Setter TargetName="Text" Property="Visibility" Value="Collapsed" />
+                          <Setter TargetName="Qr" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                          <Setter TargetName="Row" Property="Background" Value="{DynamicResource Brush.Hover}" />
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                          <Setter TargetName="Row" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                          <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </DataTemplate.Triggers>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <!-- Printer view: exactly the characters sent to the printer -->
+                <TextBlock Text="{Binding PrinterText}" FontFamily="Consolas" FontSize="10.3" LineHeight="13.5" LineStackingStrategy="BlockLineHeight"
+                           Visibility="{Binding PrinterView, Converter={StaticResource BoolToVisibility}}" />
+              </Grid>
+            </Border>
+            <TextBlock Text="{Binding PaperLength}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+            <TextBlock Text="Click a line on the bill to change it · click the grey area to edit shop details and logo" Style="{StaticResource Text.Caption}"
+                       HorizontalAlignment="Center" Margin="0,4,0,0" />
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- ═════════ Right: properties / receipt settings, check, AI ═════════ -->
+      <Border Grid.Column="2" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1,0,0,0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel Margin="18,16,18,12">
+              <!-- Nothing selected: the receipt's own settings -->
+              <StackPanel Visibility="{Binding Selected, Converter={StaticResource NullToVisible}}">
+                <TextBlock Text="Receipt settings" Style="{StaticResource Text.Title}" />
+                <TextBlock Text="Select a line on the bill to change just that line." Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,2,0,0" />
+
+                <TextBlock Text="Logo" Style="{StaticResource Prop}" />
+                <Border CornerRadius="10" BorderThickness="1" BorderBrush="{DynamicResource Brush.Line}" Padding="10">
+                  <DockPanel>
+                    <Border Width="64" Height="64" CornerRadius="8" Background="White" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1" Margin="0,0,12,0">
+                      <Grid>
+                        <TextBlock Text="&#xEB9F;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Foreground="#9AA5A4" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding LogoImage, Converter={StaticResource NullToVisible}}" />
+                        <Image Source="{Binding LogoImage}" Stretch="Uniform" Margin="4" />
+                      </Grid>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                      <Button Style="{StaticResource Button.Small}" Content="Choose picture" ds:Ds.Icon="&#xE898;" Command="{Binding ChooseLogoCommand}" HorizontalAlignment="Left" />
+                      <Button Style="{StaticResource Button.Subtle}" Content="Remove" Command="{Binding RemoveLogoCommand}" MinHeight="28" Margin="0,4,0,0" HorizontalAlignment="Left"
+                              Visibility="{Binding LogoImage, Converter={StaticResource NullToCollapsed}}" />
+                      <TextBlock Text="PNG or JPG. Prints in black and white." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+
+                <TextBlock Text="Shop name" Style="{StaticResource Prop}" />
+                <TextBox Text="{Binding ShopName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="Address" Style="{StaticResource Prop}" />
+                <TextBox Text="{Binding ShopAddress, UpdateSourceTrigger=PropertyChanged}" />
+                <UniformGrid Columns="2">
+                  <StackPanel Margin="0,0,4,0">
+                    <TextBlock Text="Phone" Style="{StaticResource Prop}" />
+                    <TextBox Text="{Binding ShopPhone, UpdateSourceTrigger=PropertyChanged}" />
+                  </StackPanel>
+                  <StackPanel Margin="4,0,0,0">
+                    <TextBlock Text="Email" Style="{StaticResource Prop}" />
+                    <TextBox Text="{Binding ShopEmail, UpdateSourceTrigger=PropertyChanged}" />
+                  </StackPanel>
+                </UniformGrid>
+                <TextBlock Text="Message at the top" Style="{StaticResource Prop}" />
+                <TextBox Text="{Binding HeaderText, UpdateSourceTrigger=PropertyChanged}" ds:Ds.Placeholder="e.g. Vet clinic every Saturday 9–12" />
+                <TextBlock Text="Message at the bottom" Style="{StaticResource Prop}" />
+                <TextBox Text="{Binding FooterText, UpdateSourceTrigger=PropertyChanged}" ds:Ds.Placeholder="e.g. Thank you! Come again" />
+                <Button Style="{StaticResource Button.Small}" Content="Save paper (remove empty lines)" ds:Ds.Icon="&#xE8B9;" Command="{Binding SavePaperCommand}" HorizontalAlignment="Left" Margin="0,14,0,0" />
+              </StackPanel>
+
+              <!-- A line is selected -->
+              <Border x:Name="Props" Visibility="{Binding Selected, Converter={StaticResource NullToCollapsed}}">
+                <StackPanel DataContext="{Binding Selected}">
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" Content="Done" MinHeight="30" ToolTip="Back to receipt settings (Esc)"
+                            Command="{Binding DataContext.ClearSelectionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                    <TextBlock Text="{Binding Converter={StaticResource PieceName}}" Style="{StaticResource Text.Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </DockPanel>
+
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Text|Pair|Signature}">
+                    <TextBlock Text="{Binding Type, Converter={StaticResource EqualsLabel}, ConverterParameter=Pair:Left text|Signature:Label|*:Text}" Style="{StaticResource Prop}" />
+                    <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="60" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,8" />
+                    <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Pair}">
+                      <TextBlock Text="Right text" Style="{StaticResource Prop}" />
+                      <TextBox Text="{Binding Right, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <TextBlock Text="Insert a field" Style="{StaticResource Prop}" />
+                    <ItemsControl ItemsSource="{Binding DataContext.Fields, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Button Style="{StaticResource Button.Small}" Content="{Binding Value}" Margin="0,0,4,4" MinHeight="26" FontSize="12" Focusable="False"
+                                  Command="{Binding DataContext.InsertFieldCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Key}" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Text|Logo}">
+                    <TextBlock Text="Position" Style="{StaticResource Prop}" />
+                    <ComboBox ItemsSource="{Binding DataContext.Aligns, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Align}" MinHeight="36" />
+                  </StackPanel>
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Text}">
+                    <TextBlock Text="Size" Style="{StaticResource Prop}" />
+                    <ComboBox ItemsSource="{Binding DataContext.Sizes, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Size}" MinHeight="36" />
+                    <CheckBox Content="Underline" IsChecked="{Binding Underline}" Margin="2,12,0,0" />
+                    <CheckBox Content="White on black" IsChecked="{Binding Invert}" Margin="2,8,0,0" />
+                  </StackPanel>
+                  <CheckBox Content="Bold" IsChecked="{Binding Bold}" Margin="2,12,0,0" Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Text|Pair}" />
+
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Divider}">
+                    <TextBlock Text="Line style" Style="{StaticResource Prop}" />
+                    <ComboBox ItemsSource="{Binding DataContext.DividerStyles, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Style}" MinHeight="36" />
+                  </StackPanel>
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Space}">
+                    <TextBlock Text="Empty lines (1–5)" Style="{StaticResource Prop}" />
+                    <TextBox Style="{StaticResource Input.Number}" Text="{Binding Lines, UpdateSourceTrigger=PropertyChanged}" />
+                  </StackPanel>
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Items}">
+                    <TextBlock Text="Layout" Style="{StaticResource Prop}" />
+                    <ComboBox ItemsSource="{Binding DataContext.Layouts, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Layout}" MinHeight="36" />
+                    <CheckBox Content="Show discounts" IsChecked="{Binding ShowDiscounts}" Margin="2,12,0,0" />
+                    <CheckBox Content="Show barcodes" IsChecked="{Binding ShowBarcode}" Margin="2,8,0,0" />
+                    <CheckBox Content="Number the items (1. 2. 3.)" IsChecked="{Binding Numbered}" Margin="2,8,0,0" />
+                  </StackPanel>
+                  <CheckBox Content="Big TOTAL" IsChecked="{Binding BigTotal}" Margin="2,12,0,0" Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Totals}" />
+                  <StackPanel Visibility="{Binding Type, Converter={StaticResource EqualsVisible}, ConverterParameter=Qr}">
+                    <TextBlock Text="Link or text" Style="{StaticResource Prop}" />
+                    <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" ds:Ds.Placeholder="e.g. https://wa.me/94771234567" />
+                    <TextBlock Text="Size" Style="{StaticResource Prop}" />
+                    <ComboBox ItemsSource="{Binding DataContext.QrSizes, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding QrSize}" MinHeight="36" />
+                  </StackPanel>
+
+                  <TextBlock Text="Print this line" Style="{StaticResource Prop}" />
+                  <ComboBox ItemsSource="{Binding DataContext.Whens, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding When}" MinHeight="36" />
+                  <TextBlock Text="Name in the layers list (optional)" Style="{StaticResource Prop}" />
+                  <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                  <CheckBox Content="Locked (cannot be moved or removed)" IsChecked="{Binding Locked}" Margin="2,12,0,0" />
+                </StackPanel>
+              </Border>
+
+              <!-- Check -->
+              <StackPanel Margin="0,22,0,0" Visibility="{Binding Issues.Count, Converter={StaticResource PositiveToVisible}}">
+                <TextBlock Text="Check" Style="{StaticResource Text.Overline}" />
+                <ItemsControl ItemsSource="{Binding Issues}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:IssueView}">
+                      <Border CornerRadius="10" Background="{DynamicResource Brush.SurfaceSunken}" Padding="12,10" Margin="0,8,0,0">
+                        <StackPanel>
+                          <Border HorizontalAlignment="Left" ds:Ds.StyleKey="{Binding Level, Converter={StaticResource IssueBadge}}">
+                            <TextBlock Text="{Binding Level}" />
+                          </Border>
+                          <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                          <Button Style="{StaticResource Button.Small}" Content="{Binding FixLabel}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                  Visibility="{Binding FixLabel, Converter={StaticResource NullToCollapsed}}"
+                                  Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- AI: always here, never in the way -->
+          <Border Grid.Row="1" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,1,0,0" Padding="14,12,14,14" Background="{DynamicResource Brush.Surface}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="2,0,0,8">
+                <Path Style="{StaticResource AiSpark}" Width="16" Height="16" VerticalAlignment="Center" />
+                <TextBlock Text="Design with AI" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                <TextBlock Text="· Ctrl+Z undoes" Style="{StaticResource Text.Caption}" Margin="6,0,0,0" VerticalAlignment="Center" />
+              </StackPanel>
+              <ScrollViewer x:Name="ChatScroll" MaxHeight="190" VerticalScrollBarVisibility="Auto" Focusable="False"
+                            Visibility="{Binding AiChat.Count, Converter={StaticResource PositiveToVisible}}">
+                <ItemsControl ItemsSource="{Binding AiChat}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:EditorChat}">
+                      <Border x:Name="Bubble" CornerRadius="10" Padding="10,7" Margin="0,0,30,6" HorizontalAlignment="Left" Background="{DynamicResource Brush.SurfaceSunken}">
+                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="13" />
+                      </Border>
+                      <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding FromUser}" Value="True">
+                          <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right" />
+                          <Setter TargetName="Bubble" Property="Margin" Value="30,0,0,6" />
+                          <Setter TargetName="Bubble" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                        </DataTrigger>
+                      </DataTemplate.Triggers>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+              <ItemsControl ItemsSource="{Binding AiExamples}" Visibility="{Binding AiChat.Count, Converter={StaticResource PositiveToVisible}, ConverterParameter=invert}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Style="{StaticResource Button.Small}" Content="{Binding}" Margin="0,0,6,6" MinHeight="26" FontSize="12" Focusable="False"
+                            Command="{Binding DataContext.AskAiCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ProgressBar IsIndeterminate="True" Height="3" Margin="0,2,0,6" Visibility="{Binding AiBusy, Converter={StaticResource BoolToVisibility}}" />
+              <DockPanel Margin="0,4,0,0">
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Margin="8,0,0,0" Padding="12,0" ToolTip="Send (Enter)"
+                        Command="{Binding AskAiCommand}" IsEnabled="{Binding AiBusy, Converter={StaticResource Not}}">
+                  <TextBlock Text="&#xE724;" FontFamily="{StaticResource Font.Icons}" FontSize="14" />
+                </Button>
+                <TextBox x:Name="AiBox" Text="{Binding AiRequest, UpdateSourceTrigger=PropertyChanged}"
+                         ds:Ds.Placeholder="Tell the AI what to change…" />
+              </DockPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

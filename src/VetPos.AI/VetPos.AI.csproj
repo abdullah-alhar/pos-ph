@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>VetPos.AI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VetPos.Data\VetPos.Data.csproj" />
+    <ProjectReference Include="..\VetPos.Printing\VetPos.Printing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="VetPos.AI.Tests" />
+    <InternalsVisibleTo Include="VetPos.Data.Tests" />
+  </ItemGroup>
+</Project>

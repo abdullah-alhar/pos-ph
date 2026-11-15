@@ -1,0 +1,60 @@
+<Application x:Class="VetPos.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:editor="clr-namespace:VetPos.App.Features.BillEditor"
+             xmlns:labels="clr-namespace:VetPos.App.Features.Labels"
+             ShutdownMode="OnMainWindowClose">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="DesignSystem/DesignSystem.xaml" />
+        <!-- The one (light) palette. ThemeManager adds the chosen colour theme on top. -->
+        <ResourceDictionary Source="DesignSystem/Colors.Light.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <ds:MoneyConverter x:Key="Money" />
+      <ds:MoneyConverter x:Key="MoneyWithSymbol" WithSymbol="True" />
+      <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+      <ds:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+      <ds:NullToCollapsedConverter x:Key="NullToCollapsed" />
+      <ds:NotConverter x:Key="Not" />
+      <ds:PositiveToVisibleConverter x:Key="PositiveToVisible" />
+      <ds:DateTextConverter x:Key="Date" />
+      <ds:DateTextConverter x:Key="DateTime" Format="dd MMM yyyy, HH:mm" />
+      <ds:DateTextConverter x:Key="Time" Format="HH:mm" />
+      <ds:EqualsConverter x:Key="Equals" />
+      <ds:AllTrueConverter x:Key="AllTrue" />
+      <ds:IsNegativeConverter x:Key="IsNegative" />
+      <ds:DaysLeftConverter x:Key="DaysLeft" />
+      <ds:EqualsVisibleConverter x:Key="EqualsVisible" />
+      <ds:NullToVisibleConverter x:Key="NullToVisible" />
+      <ds:NoticeBrushConverter x:Key="NoticeBrush" />
+      <ds:StepNumberConverter x:Key="StepNumber" />
+      <labels:BarcodePreviewConverter x:Key="BarcodePreview" />
+      <editor:PieceNameConverter x:Key="PieceName" />
+      <editor:PaperWidthConverter x:Key="PaperWidth" />
+      <editor:AlignToTextConverter x:Key="AlignToText" />
+      <editor:AlignToHorizontalConverter x:Key="AlignToHorizontal" />
+      <editor:LineHeightConverter x:Key="LineHeight" />
+      <editor:EqualsLabelConverter x:Key="EqualsLabel" />
+      <editor:IssueBadgeConverter x:Key="IssueBadge" />
+
+      <!--
+        Implicit styles live here, at the top level, so they always win over the Fluent theme's
+        own implicit styles (which WPF merges in when ThemeMode is set).
+      -->
+      <Style TargetType="Button" BasedOn="{StaticResource Button.Outline}" />
+      <Style TargetType="TextBox" BasedOn="{StaticResource Input}" />
+      <Style x:Key="AppWindow" TargetType="Window">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Text}" />
+        <Setter Property="FontSize" Value="{StaticResource FontSize.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Background}" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+      </Style>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

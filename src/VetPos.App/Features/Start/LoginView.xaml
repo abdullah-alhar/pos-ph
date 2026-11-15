@@ -1,0 +1,85 @@
+<UserControl x:Class="VetPos.App.Features.Start.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:local="clr-namespace:VetPos.App.Features.Start">
+  <Grid Background="{DynamicResource Brush.Surface}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="2*" MinWidth="360" MaxWidth="560" />
+      <ColumnDefinition Width="3*" />
+    </Grid.ColumnDefinitions>
+
+    <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}" Subtitle="Pet food, farm feed, animal medicine and accessories" />
+
+    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">
+        <TextBlock Text="{Binding Greeting}" Style="{StaticResource Text.Secondary}" FontSize="16" HorizontalAlignment="Center" />
+
+        <!-- People: click your face -->
+        <ListBox x:Name="People" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" BorderThickness="0" Background="Transparent"
+                 Visibility="{Binding ShowUserTiles, Converter={StaticResource BoolToVisibility}}" Focusable="False" HorizontalAlignment="Center" Margin="0,18,0,0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="OnPersonClick">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel HorizontalAlignment="Center" MaxWidth="560" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem">
+              <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+              <Setter Property="Cursor" Value="Hand" />
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="ListBoxItem">
+                    <StackPanel x:Name="Root" Width="112" Margin="4,0" Opacity="0.55">
+                      <Grid Width="80" Height="80" HorizontalAlignment="Center">
+                        <Ellipse x:Name="Ring" Stroke="{DynamicResource Brush.Accent}" StrokeThickness="3" Visibility="Hidden" />
+                        <Ellipse Margin="6" Fill="{DynamicResource Brush.Brand}" />
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Grid>
+                      <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,8,0,0" />
+                      <TextBlock Text="{Binding Role}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Root" Property="Opacity" Value="0.85" />
+                      </Trigger>
+                      <Trigger Property="IsSelected" Value="True">
+                        <Setter TargetName="Root" Property="Opacity" Value="1" />
+                        <Setter TargetName="Ring" Property="Visibility" Value="Visible" />
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </ListBox.ItemContainerStyle>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type local:UserTile}">
+              <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="24" FontWeight="SemiBold" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Or type the username -->
+        <StackPanel Width="300" Margin="0,22,0,0" Visibility="{Binding ShowUserTiles, Converter={StaticResource InverseBoolToVisibility}}">
+          <TextBlock Text="Username" Style="{StaticResource FieldLabel}" Margin="2,0,0,6" />
+          <TextBox x:Name="UserBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" FontSize="17" MinHeight="48" />
+        </StackPanel>
+
+        <local:PinEntry x:Name="Pin" Margin="0,30,0,0" Hint="{Binding PinHint}" Error="{Binding Error}" Submitted="OnSubmitted" />
+
+        <Button Style="{StaticResource Button.Subtle}" HorizontalAlignment="Center" Margin="0,18,0,0" Command="{Binding ToggleTypeUsernameCommand}"
+                Visibility="{Binding Users.Count, Converter={StaticResource PositiveToVisible}}">
+          <TextBlock>
+            <TextBlock.Style>
+              <Style TargetType="TextBlock">
+                <Setter Property="Text" Value="Sign in with a username" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding TypeUsername}" Value="True"><Setter Property="Text" Value="Choose a person instead" /></DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+        </Button>
+        <ProgressBar IsIndeterminate="True" Width="160" Height="3" Margin="0,10,0,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

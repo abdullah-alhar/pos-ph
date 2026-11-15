@@ -1,0 +1,33 @@
+<UserControl x:Class="VetPos.App.Features.Start.LockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:local="clr-namespace:VetPos.App.Features.Start">
+  <Grid Background="{DynamicResource Brush.Surface}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="2*" MinWidth="360" MaxWidth="560" />
+      <ColumnDefinition Width="3*" />
+    </Grid.ColumnDefinitions>
+
+    <local:BrandPanel Title="Screen locked" Subtitle="The open bill is kept exactly as it was." />
+
+    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">
+        <Grid Width="80" Height="80" HorizontalAlignment="Center">
+          <Ellipse Fill="{DynamicResource Brush.Brand}" />
+          <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource Brush.Surface}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                  BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1">
+            <TextBlock Text="&#xE72E;" FontFamily="{StaticResource Font.Icons}" FontSize="13" Foreground="{DynamicResource Brush.Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+        </Grid>
+        <TextBlock Text="{Binding Name}" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,12,0,0" />
+
+        <local:PinEntry x:Name="Pin" Margin="0,26,0,0" Hint="Enter your PIN to unlock" Error="{Binding Error}" Submitted="OnSubmitted" />
+
+        <Button Style="{StaticResource Button.Subtle}" HorizontalAlignment="Center" Margin="0,18,0,0" Content="Sign in as someone else" ds:Ds.Icon="&#xE748;"
+                Command="{Binding SwitchCommand}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

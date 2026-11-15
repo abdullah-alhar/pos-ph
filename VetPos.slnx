@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VetPos.AI/VetPos.AI.csproj" />
+    <Project Path="src/VetPos.App/VetPos.App.csproj" />
+    <Project Path="src/VetPos.Core/VetPos.Core.csproj" />
+    <Project Path="src/VetPos.Data/VetPos.Data.csproj" />
+    <Project Path="src/VetPos.Printing/VetPos.Printing.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VetPos.Core.Tests/VetPos.Core.Tests.csproj" />
+    <Project Path="tests/VetPos.Data.Tests/VetPos.Data.Tests.csproj" />
+    <Project Path="tests/VetPos.Printing.Tests/VetPos.Printing.Tests.csproj" />
+  </Folder>
+</Solution>
