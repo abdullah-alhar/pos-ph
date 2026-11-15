@@ -5,7 +5,6 @@ using VetPos.Core.Rules;
 using VetPos.Core.Security;
 using VetPos.Core.Settings;
 using VetPos.Data.Services;
-
 namespace VetPos.App.Features.Start;
 
 /// <summary>First start: the shop's name and the owner's account.</summary>
@@ -67,7 +66,7 @@ public sealed record UserTile(UserInfo User)
     }
 }
 
-public sealed partial class LoginViewModel(AuthService auth, SettingsService settings, LogoService logo, Ui ui) : ObservableObject
+public sealed partial class LoginViewModel(AuthService auth, SettingsService settings, LogoService logo, Ui ui, UpdateService updates) : ObservableObject
 {
     public System.Windows.Media.ImageSource? ShopLogo { get; } = logo.Load();
 
@@ -79,6 +78,12 @@ public sealed partial class LoginViewModel(AuthService auth, SettingsService set
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private UserTile? _selectedUser;
     [ObservableProperty] private bool _typeUsername;
+
+    /// <summary>
+    /// The update service: the login screen shows a banner when a new version is ready,
+    /// so the shop owner sees it even before signing in.
+    /// </summary>
+    public UpdateService Updates { get; } = updates;
 
     public event EventHandler<UserInfo>? Done;
 
@@ -117,6 +122,10 @@ public sealed partial class LoginViewModel(AuthService auth, SettingsService set
         SelectedUser = Users.FirstOrDefault(u => u.User.Username.Equals(Username, StringComparison.OrdinalIgnoreCase))
             ?? Users.OrderByDescending(u => u.User.LastLoginAt ?? DateTime.MinValue).FirstOrDefault();
         OnPropertyChanged(nameof(ShowUserTiles));
+
+        // Check for updates quietly as soon as the login screen appears.
+        // No internet → silently skipped; result visible via the Updates.ReadyVersion binding.
+        await ErrorHandling.Quietly(() => Updates.CheckAsync(quiet: true), "login update check");
     }
 
     [RelayCommand]

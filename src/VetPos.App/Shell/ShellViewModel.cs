@@ -7,6 +7,7 @@ using VetPos.App.DesignSystem.Controls;
 using VetPos.App.Features.Assistant;
 using VetPos.App.Features.BillEditor;
 using VetPos.App.Features.Billing;
+using VetPos.App.Features.Home;
 using VetPos.App.Features.Products;
 using VetPos.App.Features.Reports;
 using VetPos.App.Features.Settings;
@@ -28,6 +29,7 @@ public sealed record NavItem(string Title, string Icon, string Shortcut, Type Pa
     {
         "Bill editor" => "Receipt",
         "AI Assistant" => "AI",
+        "Home" => "Home",
         _ => Title,
     };
 
@@ -70,6 +72,7 @@ public sealed partial class ShellViewModel : ObservableObject
         Session = session;
         var all = new NavItem[]
         {
+            new("Home", "", "Ctrl+0", typeof(Features.Home.HomeViewModel), "#0A8A82"),
             new("Billing", "", "Ctrl+1", typeof(BillingViewModel), "#16A34A"),
             new("Stock in", "", "Ctrl+2", typeof(StockEntryViewModel), "#2563EB"),
             new("Products", "", "Ctrl+3", typeof(ProductsViewModel), "#EA7A0C"),
@@ -77,7 +80,7 @@ public sealed partial class ShellViewModel : ObservableObject
             new("Reports", "", "Ctrl+4", typeof(ReportsViewModel), "#DB2777"),
             new("Bill editor", "", "Ctrl+5", typeof(BillEditorViewModel), "#0891B2", OwnerOnly: true),
             new("Settings", "", "Ctrl+6", typeof(SettingsViewModel), "#475569", OwnerOnly: true),
-            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel), "#0A8A82"),
+            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel), "#0A8A82"),
         };
         Items = new ObservableCollection<NavItem>(all.Where(i => !i.OwnerOnly || session.IsOwner));
         BuildCommands();
@@ -227,7 +230,10 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         Updates.Start();
         Collapsed = !(await _settings.GetAsync<AppearanceSettings>(AppearanceSettings.Key)).SidebarExpanded;
-        Selected = Items[0];
+        // Home is Items[0]; wire card-click → navigation before selecting it
+        var homeVm = Page<Features.Home.HomeViewModel>();
+        homeVm.CardActivated += (_, item) => Selected = item;
+        Selected = Items[0]; // lands on Home
         await RefreshNoticesAsync();
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(3) };
         timer.Tick += async (_, _) => await ErrorHandling.Quietly(RefreshNoticesAsync, "notifications");
@@ -258,6 +264,10 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     public void Go<T>() => Selected = Items.FirstOrDefault(i => i.PageType == typeof(T)) ?? Selected;
+
+    /// <summary>Go to the Home page from any page (sidebar button or Ctrl+0).</summary>
+    [RelayCommand]
+    private void GoHome() => Go<Features.Home.HomeViewModel>();
 
     [RelayCommand]
     private async Task ToggleSidebar()
@@ -350,6 +360,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _commands.Add(new("Notifications", "App", null, () => ToggleNoticesCommand.ExecuteAsync(null)));
         _commands.Add(new("Print barcode labels", "Products", "Ctrl+8", () => { Go<Features.Labels.LabelsViewModel>(); return Task.CompletedTask; }));
         if (Session.IsOwner) _commands.Add(new("Activity log", "Reports", null, () => { Go<ReportsViewModel>(); Page<ReportsViewModel>().Section = ReportSection.Activity; return Task.CompletedTask; }));
+        _commands.Add(new("Go to Home", "Pages", "Ctrl+0", () => { GoHomeCommand.Execute(null); return Task.CompletedTask; }));
         _commands.Add(new("Keyboard shortcuts", "App", "F1", () => { ShowHelp(); return Task.CompletedTask; }));
         _commands.Add(new("Change my PIN", "App", null, () => ChangePinCommand.ExecuteAsync(null)));
         _commands.Add(new("Lock screen", "App", "Ctrl+L", () => { Lock(); return Task.CompletedTask; }));
@@ -404,7 +415,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>All shortcuts, for the F1 help panel.</summary>
     public static IReadOnlyList<(string Section, IReadOnlyList<(string Key, string What)> Keys)> Help { get; } =
     [
-        ("Everywhere", [("Ctrl+K", "Find any screen or action"), ("Ctrl+1 … Ctrl+8", "Billing, Stock in, Products, Reports, Bill editor, Settings, AI, Labels"),
+        ("Everywhere", [("Ctrl+K", "Find any screen or action"), ("Ctrl+0", "Home — all pages at a glance"), ("Ctrl+1 … Ctrl+8", "Billing, Stock in, Products, Reports, Bill editor, Settings, AI, Labels"),
             ("Ctrl+J", "AI assistant panel on any page"),
             ("F1", "This list"), ("Ctrl+L", "Lock the screen (the bill stays)"), ("Ctrl+Shift+L", "Log out"),
             ("Esc", "Close / cancel / back"), ("Enter", "OK in dialogs, next field in forms")]),

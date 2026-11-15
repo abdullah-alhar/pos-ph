@@ -13,6 +13,7 @@
              xmlns:settings="clr-namespace:VetPos.App.Features.Settings"
              xmlns:assistant="clr-namespace:VetPos.App.Features.Assistant"
              xmlns:labels="clr-namespace:VetPos.App.Features.Labels"
+             xmlns:home="clr-namespace:VetPos.App.Features.Home"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance shell:ShellViewModel}">
   <UserControl.Resources>
     <DataTemplate DataType="{x:Type billing:BillingViewModel}"><billing:BillingView /></DataTemplate>
@@ -23,6 +24,9 @@
     <DataTemplate DataType="{x:Type settings:SettingsViewModel}"><settings:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type assistant:AssistantViewModel}"><assistant:AssistantView /></DataTemplate>
     <DataTemplate DataType="{x:Type labels:LabelsViewModel}"><labels:LabelsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type home:HomeViewModel}">
+      <home:HomeView Items="{Binding DataContext.Items, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+    </DataTemplate>
 
     <Style x:Key="MenuItemButton" TargetType="Button" BasedOn="{StaticResource Button.Subtle}">
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -43,6 +47,7 @@
     <KeyBinding Gesture="Ctrl+6" Command="{Binding NavigateCommand}" CommandParameter="Ctrl+6" />
     <KeyBinding Gesture="Ctrl+7" Command="{Binding NavigateCommand}" CommandParameter="Ctrl+7" />
     <KeyBinding Gesture="Ctrl+8" Command="{Binding NavigateCommand}" CommandParameter="Ctrl+8" />
+    <KeyBinding Gesture="Ctrl+0" Command="{Binding GoHomeCommand}" />
     <KeyBinding Gesture="Ctrl+J" Command="{Binding ToggleAssistantCommand}" />
     <KeyBinding Gesture="Ctrl+K" Command="{Binding OpenPaletteCommand}" />
     <KeyBinding Key="F1" Command="{Binding ShowHelpCommand}" />
@@ -181,7 +186,17 @@
           </Button>
         </StackPanel>
 
-        <!-- Pages -->
+        <!-- Home button: always visible, returns to Home from any page (Ctrl+0) -->
+        <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding GoHomeCommand}"
+                ToolTip="Home — all pages (Ctrl+0)" Margin="0,0,0,2">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock Text="Home" Style="{StaticResource RailLabel}" />
+          </StackPanel>
+        </Button>
+        <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Brush.SidebarLine}" Margin="16,0,16,4" />
+
+                <!-- Pages -->
         <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Background="Transparent" BorderThickness="0" Padding="0" Focusable="False"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
           <ListBox.ItemContainerStyle>

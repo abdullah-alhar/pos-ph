@@ -9,10 +9,31 @@
       <ColumnDefinition Width="3*" />
     </Grid.ColumnDefinitions>
 
-    <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}" Subtitle="Pet food, farm feed, animal medicine and accessories" />
+    <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}" Subtitle="Pet food, farm feed, animal medicine and accessories · Beta 3" />
 
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">
+                <!-- Update available banner (pre-login) — hidden per session once dismissed -->
+        <Border CornerRadius="10" Background="{DynamicResource Brush.AccentSoft}"
+                BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1"
+                Padding="14,10" Margin="0,0,0,20"
+                Visibility="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="&#xE8CF;" FontFamily="{StaticResource Font.Icons}" FontSize="17"
+                         Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap">
+                <Run Text="New version released — VetPOS" Foreground="{DynamicResource Brush.AccentText}" FontWeight="Medium" />
+                <Run Text="{Binding Updates.ReadyVersion, Mode=OneWay}" Foreground="{DynamicResource Brush.AccentText}" FontWeight="SemiBold" />
+                <Run Text="is ready. Sign in to update." Foreground="{DynamicResource Brush.AccentText}" />
+              </TextBlock>
+            </StackPanel>
+          </Grid>
+        </Border>
         <TextBlock Text="{Binding Greeting}" Style="{StaticResource Text.Secondary}" FontSize="16" HorizontalAlignment="Center" />
 
         <!-- People: click your face -->

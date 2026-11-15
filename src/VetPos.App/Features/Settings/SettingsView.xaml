@@ -305,7 +305,13 @@
         <!-- About -->
         <Border Style="{StaticResource SectionCard}" Visibility="{Binding Section, Converter={StaticResource EqualsVisible}, ConverterParameter=About}">
           <StackPanel>
-            <TextBlock Style="{StaticResource Text.Title}"><Run Text="VetPOS" /> <Run Text="{Binding Version, Mode=OneWay}" /></TextBlock>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Text.Title}"><Run Text="VetPOS" /> <Run Text="{Binding Version, Mode=OneWay}" /></TextBlock>
+              <Border Style="{StaticResource Badge.Accent}" Margin="10,3,0,0" VerticalAlignment="Center"
+                      Padding="8,2,8,3" CornerRadius="6">
+                <TextBlock Text="Beta 3" FontSize="13" FontWeight="SemiBold" />
+              </Border>
+            </StackPanel>
             <TextBlock Text="{Binding DataFolder, StringFormat='Data folder: {0}'}" Style="{StaticResource Text.Secondary}" Margin="0,6,0,0" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
               <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" />

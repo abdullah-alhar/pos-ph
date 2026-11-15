@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.0-beta.3 (15 Nov 2026): Home page & update notifications
+
+### Home page (new)
+- **New Home page** shown immediately after sign-in: all main sections displayed as large coloured
+  icon cards (Billing, Stock in, Products, Labels, Reports, Bill editor, Settings, AI Assistant).
+- Cards are keyboard-navigable: **arrow keys** move between cards, **Enter** opens the section,
+  each card shows its shortcut key.
+- Smooth card animation on hover/focus (grow 4.5 %, 150 ms). Page fades in on open (180 ms).
+  Both effects respect the Windows "Show animations" setting — slow PCs are not affected.
+- **Ctrl+0** goes to Home from any page. A **Home** button is always visible at the top of the sidebar.
+
+### Update check improvements
+- Update check now runs **before login**, on the sign-in screen.
+  A "New version released — VetPOS x.y.z is ready" banner appears on the login screen and on
+  the Home page when a newer version is available.
+- **Check for Updates** button on the Home page (manual check with a toast result).
+- The banner is shown at most once per session: closing or clicking "Later" hides it for the
+  rest of that session without hiding the next session's banner.
+- No internet → silently skipped, no error shown.
+
+### Version display
+- Version shown as **Beta 3** badge on the Home page and in Settings → About.
+- Login screen brand panel now reads "Beta 3" in the subtitle.
+
 ## 1.0.0-beta.2 (15 Nov 2026): shop feedback round 1
 
 From the first feedback: staff wanted a brighter, easier screen, a better sales view, and expiry dates.

@@ -63,31 +63,43 @@ public sealed partial class UpdateService(SettingsService settings, BackupServic
     /// <summary>
     /// Looks for a new version and downloads it. Returns the new version, or null when this is the
     /// newest. Quiet checks never show errors (no internet is normal in a shop).
+    /// One short line is written to the log on every check; a warning is logged on failure.
     /// </summary>
     public async Task<string?> CheckAsync(bool quiet)
     {
         if (_checking) return ReadyVersion;
         _checking = true;
+        logger.LogInformation("Update check started (quiet={Quiet}, current={Current})", quiet, CurrentVersion);
         try
         {
             var source = (await settings.GetAsync<UpdateSettings>(UpdateSettings.Key)).Source;
             var manager = CreateManager(source);
             if (!manager.IsInstalled)
             {
+                logger.LogInformation("Update check skipped: app is not installed (dev/copied build)");
                 if (quiet) return null;
                 throw new PosException("Updates work in the installed app (run Setup.exe), not in a copied folder.");
             }
             var update = await manager.CheckForUpdatesAsync();
-            if (update is null) return null;
+            if (update is null)
+            {
+                logger.LogInformation("Update check complete: {Current} is the newest version", CurrentVersion);
+                return null;
+            }
             var version = update.TargetFullRelease.Version.ToString();
             if (version != ReadyVersion)
             {
+                logger.LogInformation("New version {Version} found — downloading", version);
                 await manager.DownloadUpdatesAsync(update);
                 _manager = manager;
                 _pending = update;
                 Dismissed = false;
                 ReadyVersion = version;
-                logger.LogInformation("Update {Version} downloaded and ready", version);
+                logger.LogInformation("Update {Version} downloaded and ready to install", version);
+            }
+            else
+            {
+                logger.LogInformation("Update {Version} already downloaded and waiting for restart", version);
             }
             return version;
         }
@@ -97,11 +109,13 @@ public sealed partial class UpdateService(SettingsService settings, BackupServic
         }
         catch (Exception ex) when (quiet)
         {
-            logger.LogInformation(ex, "Quiet update check failed (often no internet)");
+            // No internet is normal in a shop — log as a warning and move on; never show an error.
+            logger.LogWarning(ex, "Quiet update check failed (often no internet — will retry next session)");
             return null;
         }
         catch (Exception ex)
         {
+            // Manual "Check now" press: log the warning and surface a friendly message (no crash).
             logger.LogWarning(ex, "Update check failed");
             throw new PosException("Could not reach the update page. Check the internet connection and try again. Billing works as normal.");
         }
@@ -111,11 +125,16 @@ public sealed partial class UpdateService(SettingsService settings, BackupServic
         }
     }
 
-    /// <summary>Backup, then restart into the new version.</summary>
+    /// <summary>
+    /// Backup, then restart into the new version.
+    /// A PreUpdate backup is always made first so the shop's data is never at risk.
+    /// </summary>
     public async Task RestartNowAsync(Actor actor)
     {
         if (_manager is null || _pending is null) return;
-        await backups.CreateAsync(BackupKind.PreUpdate, actor);
+        logger.LogInformation("Pre-update backup started before installing {Version}", _pending.TargetFullRelease.Version);
+        var backup = await backups.CreateAsync(BackupKind.PreUpdate, actor);
+        logger.LogInformation("Pre-update backup complete: {File} — restarting to apply update", backup.FileName);
         _manager.ApplyUpdatesAndRestart(_pending);
     }
 

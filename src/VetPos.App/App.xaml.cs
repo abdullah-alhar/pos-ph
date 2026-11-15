@@ -206,6 +206,7 @@ public partial class App : Application
         builder.Services.AddTransient<LockViewModel>();
         builder.Services.AddTransient<ShellViewModel>();
         // Pages: a fresh set for every sign-in.
+        builder.Services.AddTransient<VetPos.App.Features.Home.HomeViewModel>();
         builder.Services.AddTransient<BillingViewModel>();
         builder.Services.AddTransient<StockEntryViewModel>();
         builder.Services.AddTransient<ProductsViewModel>();

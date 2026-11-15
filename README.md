@@ -5,7 +5,7 @@ medicine and accessories. Native Windows app (.NET 10 LTS, WPF, SQLite), keyboar
 details (generic name, strength, form, species), a receipt designer, reports with PDF/Excel export, backups and an AI
 assistant that reads the shop's own data.
 
-**Version 1.0.0-beta.2** · [Changelog](CHANGELOG.md) · [Quick start for the shop](docs/QUICK-START.md) · [Feedback form](docs/FEEDBACK.md) · Plan: [docs/PLAN.md](docs/PLAN.md) · Design: [docs/DESIGN.md](docs/DESIGN.md)
+**Version 1.0.0-beta.3** · [Changelog](CHANGELOG.md) · [Quick start for the shop](docs/QUICK-START.md) · [Feedback form](docs/FEEDBACK.md) · Plan: [docs/PLAN.md](docs/PLAN.md) · Design: [docs/DESIGN.md](docs/DESIGN.md)
 
 > **Beta note:** VetPOS is not code-signed yet. On PCs with Windows *Smart App Control* switched on,
 > Windows blocks it. Install on PCs where it is off (Windows Security → App & browser control).
@@ -129,8 +129,8 @@ The app builds on macOS/Linux too (for CI and tests) but only runs on Windows.
 **Installer + update packages**
 
 ```
-./build/release.sh 1.0.0-beta.2               # macOS / Linux
-powershell -File build\release.ps1 -Version 1.0.0-beta.2   # Windows
+./build/release.sh 1.0.0-beta.3               # macOS / Linux
+powershell -File build\release.ps1 -Version 1.0.0-beta.3   # Windows
 ```
 
 Output in `publish/releases`: `VetPOS.App-win-Setup.exe` (give this to the shop),
