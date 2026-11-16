@@ -36,10 +36,10 @@
   <Thickness x:Key="Pad.Page">32,28,32,24</Thickness>
 
   <sys:Double x:Key="Height.ControlSmall">36</sys:Double>
-  <sys:Double x:Key="Height.Control">46</sys:Double>
-  <sys:Double x:Key="Height.ControlLarge">54</sys:Double>
-  <sys:Double x:Key="Height.Pay">70</sys:Double>
-  <sys:Double x:Key="Height.Row">58</sys:Double>
+  <sys:Double x:Key="Height.Control">48</sys:Double>
+  <sys:Double x:Key="Height.ControlLarge">56</sys:Double>
+  <sys:Double x:Key="Height.Pay">72</sys:Double>
+  <sys:Double x:Key="Height.Row">68</sys:Double>
   <sys:Double x:Key="Width.Sidebar">232</sys:Double>
   <sys:Double x:Key="Width.SidebarCollapsed">96</sys:Double>
   <sys:Double x:Key="Width.TotalsPanel">360</sys:Double>

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VetPos.App.Infrastructure;
 using VetPos.App.Shell;
+using VetPos.Data.Services;
 
 namespace VetPos.App.Features.Home;
 
@@ -10,7 +11,7 @@ namespace VetPos.App.Features.Home;
 /// The first page shown after login: greeting, quick start buttons, big section cards, tips.
 /// The update-available banner is shown here (and dismissed per session) when a new version is ready.
 /// </summary>
-public sealed partial class HomeViewModel(Ui ui, UpdateService updates) : PageViewModel(ui)
+public sealed partial class HomeViewModel(Ui ui, UpdateService updates, ReportService reports, ShopClock clock) : PageViewModel(ui)
 {
     public UpdateService Updates { get; } = updates;
 
@@ -58,6 +59,20 @@ public sealed partial class HomeViewModel(Ui ui, UpdateService updates) : PageVi
     [ObservableProperty] private string? _billsToday;
     [ObservableProperty] private string? _salesToday;
     [ObservableProperty] private string? _lowStock;
+
+    public override async Task OnShownAsync()
+    {
+        await base.OnShownAsync();
+        await ErrorHandling.Quietly(async () =>
+        {
+            var summary = await reports.SummaryAsync(clock.Today, clock.Today);
+            BillsToday = summary.Bills.ToString(CultureInfo.InvariantCulture);
+            SalesToday = $"Rs. {summary.Sales:N0}";
+            var stock = await reports.StockAsync();
+            var low = stock.Count(s => s.Qty <= s.ReorderLevel);
+            LowStock = low == 1 ? "1 item" : $"{low} items";
+        }, "home stats");
+    }
 
     // ---------- Commands ----------
 

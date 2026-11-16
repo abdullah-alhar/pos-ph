@@ -186,17 +186,7 @@
           </Button>
         </StackPanel>
 
-        <!-- Home button: always visible, returns to Home from any page (Ctrl+0) -->
-        <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding GoHomeCommand}"
-                ToolTip="Home — all pages (Ctrl+0)" Margin="0,0,0,2">
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
-            <TextBlock Text="Home" Style="{StaticResource RailLabel}" />
-          </StackPanel>
-        </Button>
-        <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Brush.SidebarLine}" Margin="16,0,16,4" />
-
-                <!-- Pages -->
+        <!-- Pages -->
         <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Background="Transparent" BorderThickness="0" Padding="0" Focusable="False"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
           <ListBox.ItemContainerStyle>

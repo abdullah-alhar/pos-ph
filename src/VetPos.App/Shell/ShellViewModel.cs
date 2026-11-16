@@ -72,15 +72,15 @@ public sealed partial class ShellViewModel : ObservableObject
         Session = session;
         var all = new NavItem[]
         {
-            new("Home", "", "Ctrl+0", typeof(Features.Home.HomeViewModel), "#0A8A82"),
+            new("Home", "", "Ctrl+0", typeof(Features.Home.HomeViewModel), "#0F8B8D"),
             new("Billing", "", "Ctrl+1", typeof(BillingViewModel), "#16A34A"),
             new("Stock in", "", "Ctrl+2", typeof(StockEntryViewModel), "#2563EB"),
-            new("Products", "", "Ctrl+3", typeof(ProductsViewModel), "#EA7A0C"),
+            new("Products", "\uE719", "Ctrl+3", typeof(ProductsViewModel), "#EA7C0B"),
             new("Labels", "\uE8EC", "Ctrl+8", typeof(Features.Labels.LabelsViewModel), "#7C3AED"),
             new("Reports", "", "Ctrl+4", typeof(ReportsViewModel), "#DB2777"),
             new("Bill editor", "", "Ctrl+5", typeof(BillEditorViewModel), "#0891B2", OwnerOnly: true),
             new("Settings", "", "Ctrl+6", typeof(SettingsViewModel), "#475569", OwnerOnly: true),
-            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel), "#0A8A82"),
+            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel), "#0F8B8D"),
         };
         Items = new ObservableCollection<NavItem>(all.Where(i => !i.OwnerOnly || session.IsOwner));
         BuildCommands();
@@ -119,8 +119,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private bool _linksHooked;
 
-    /// <summary>The floating AI button shows on every page except billing (it is in the scan bar there) and the AI page.</summary>
-    public bool ShowAiButton => !IsAssistantOpen && CurrentPage is not BillingViewModel and not AssistantViewModel;
+    /// <summary>The floating AI button shows on every page except billing (it is in the scan bar there), the AI page, and the bill/receipt editor (which has its own inline Design with AI panel).</summary>
+    public bool ShowAiButton => !IsAssistantOpen && CurrentPage is not BillingViewModel and not AssistantViewModel and not BillEditorViewModel;
 
     partial void OnCurrentPageChanged(object? value) => OnPropertyChanged(nameof(ShowAiButton));
     partial void OnIsAssistantOpenChanged(bool value) => OnPropertyChanged(nameof(ShowAiButton));

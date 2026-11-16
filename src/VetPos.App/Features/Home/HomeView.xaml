@@ -59,13 +59,13 @@
                 <ScaleTransform ScaleX="1" ScaleY="1" />
               </Border.RenderTransform>
               <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <!-- Big coloured icon tile -->
-                <Border Width="88" Height="88" CornerRadius="22"
-                        Background="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                <!-- Coloured icon tile matching Figma design system -->
+                <Border Width="76" Height="76" CornerRadius="18"
+                        Background="{Binding TintSoft}"
                         HorizontalAlignment="Center">
-                  <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                  <TextBlock Text="{Binding Icon}"
                              FontFamily="{StaticResource Font.Icons}"
-                             FontSize="42" Foreground="White"
+                             FontSize="36" Foreground="{Binding Tint}"
                              HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <!-- Section title -->
@@ -372,7 +372,7 @@
             <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0"
                        Text="Your data is backed up on this computer automatically. Keep a copy on a USB drive too." />
             <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0"
-                       Text="Something looks wrong in this beta version? Tell the developer what you were doing." />
+                       Text="Something looks wrong? Tell the developer what you were doing." />
           </StackPanel>
         </Border>
       </Grid>

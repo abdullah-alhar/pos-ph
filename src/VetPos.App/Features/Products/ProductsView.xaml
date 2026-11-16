@@ -22,7 +22,7 @@
       <Grid DockPanel.Dock="Top" Margin="0,0,0,18">
         <StackPanel>
           <TextBlock Text="Products" Style="{StaticResource Text.PageTitle}" />
-          <TextBlock Text="Each pack size is its own product, e.g. “Whiskas Adult 1.2 kg”." Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" />
+          <TextBlock Text="Keep food, medicine and extras ready for sale." Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Command="{Binding AddWithAiCommand}" Margin="0,0,8,0" ToolTip="Opens the AI chat: describe or paste products in any words, check the card, Confirm">
@@ -71,34 +71,34 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="150" />
                   <ColumnDefinition Width="110" />
-                  <ColumnDefinition Width="80" />
+                  <ColumnDefinition Width="90" />
                   <ColumnDefinition Width="150" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Product" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="Category" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Price" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="3" Text="Stock" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="4" Text="Status" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <TextBlock Text="Product" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="Category" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="Price" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="3" Text="Stock" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="4" Text="Status" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0,0,0" />
               </Grid>
             </Border>
             <ListBox Style="{StaticResource Table}" ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}">
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type data:ProductRow}">
-                  <Grid>
+                  <Grid MinHeight="50" Margin="0,4,0,4">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="150" />
                       <ColumnDefinition Width="110" />
-                      <ColumnDefinition Width="80" />
+                      <ColumnDefinition Width="90" />
                       <ColumnDefinition Width="150" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Name}" FontWeight="Medium" />
-                      <TextBlock Text="{Binding Barcode}" Style="{StaticResource Text.Caption}" FontFamily="{StaticResource Font.Mono}" />
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16" />
+                      <TextBlock Text="{Binding Barcode}" Style="{StaticResource Text.Caption}" FontSize="13" FontFamily="{StaticResource Font.Mono}" Margin="0,2,0,0" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding Category}" Style="{StaticResource Text.Secondary}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding SellingPrice, Converter={StaticResource Money}}" Style="{StaticResource Text.Money}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3" Text="{Binding StockQty}" Style="{StaticResource Text.MoneyStrong}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Category}" Style="{StaticResource Text.Secondary}" FontSize="15" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding SellingPrice, Converter={StaticResource Money}}" Style="{StaticResource Text.Money}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding StockQty}" Style="{StaticResource Text.MoneyStrong}" FontSize="16" VerticalAlignment="Center" />
                     <WrapPanel Grid.Column="4" Margin="16,0,0,0" VerticalAlignment="Center">
                       <Border Style="{StaticResource Badge}" Visibility="{Binding IsOut, Converter={StaticResource BoolToVisibility}}" Margin="0,0,4,0"><TextBlock Text="Out of stock" /></Border>
                       <Border Style="{StaticResource Badge.Warning}" Margin="0,0,4,0">

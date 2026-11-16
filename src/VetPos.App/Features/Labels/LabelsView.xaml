@@ -14,8 +14,8 @@
   <DockPanel Margin="{StaticResource Pad.Page}">
     <Grid DockPanel.Dock="Top" Margin="0,0,0,18">
       <StackPanel>
-        <TextBlock Text="Barcode labels" Style="{StaticResource Text.PageTitle}" />
-        <TextBlock Text="Price and barcode stickers for the shelf and the products." Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" />
+        <TextBlock Text="Labels" Style="{StaticResource Text.PageTitle}" />
+        <TextBlock Text="Choose products, check the preview, then print." Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" />
       </StackPanel>
       <Button Style="{StaticResource Button.Primary}" Content="Print labels" ds:Ds.KeyHint="Ctrl+P" ds:Ds.Icon="&#xE749;" HorizontalAlignment="Right" VerticalAlignment="Center"
               Command="{Binding PrintCommand}" IsEnabled="{Binding HasItems}" />

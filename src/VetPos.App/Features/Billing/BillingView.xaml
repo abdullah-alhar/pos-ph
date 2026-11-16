@@ -199,17 +199,17 @@
             <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}" CornerRadius="14,14,0,0">
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="34" />
+                  <ColumnDefinition Width="36" />
                   <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="112" />
-                  <ColumnDefinition Width="128" />
                   <ColumnDefinition Width="120" />
+                  <ColumnDefinition Width="136" />
+                  <ColumnDefinition Width="130" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="#" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="Item" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Price" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="3" Text="Qty" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="4" Text="Total" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <TextBlock Text="#" VerticalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" Text="Item" VerticalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="2" Text="Price" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="3" Text="Qty" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="4" Text="Total" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="SemiBold" />
               </Grid>
             </Border>
             <ListBox x:Name="LinesList" Style="{StaticResource Table}" ItemsSource="{Binding Lines}" SelectedItem="{Binding Selected}" Focusable="False"
@@ -217,19 +217,19 @@
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:CartLine}">
                   <Grid Margin="-16,0,-16,0" ds:Ds.Flash="{Binding Flash}">
-                    <Grid Margin="16,9,16,9">
+                    <Grid Margin="16,12,16,12" MinHeight="44">
                       <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="34" />
+                        <ColumnDefinition Width="36" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="112" />
-                        <ColumnDefinition Width="128" />
                         <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="136" />
+                        <ColumnDefinition Width="130" />
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="{Binding Number}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                      <TextBlock Text="{Binding Number}" Style="{StaticResource Text.Caption}" FontSize="14" VerticalAlignment="Center" />
                       <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
-                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="15" TextTrimming="CharacterEllipsis" />
-                        <WrapPanel Margin="0,3,0,0">
-                          <TextBlock Text="{Binding Barcode}" Style="{StaticResource Text.Caption}" FontFamily="{StaticResource Font.Mono}" Margin="0,0,8,0" VerticalAlignment="Center"
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="17" TextTrimming="CharacterEllipsis" />
+                        <WrapPanel Margin="0,4,0,0">
+                          <TextBlock Text="{Binding Barcode}" Style="{StaticResource Text.Caption}" FontSize="13" FontFamily="{StaticResource Font.Mono}" Margin="0,0,8,0" VerticalAlignment="Center"
                                      Visibility="{Binding Barcode, Converter={StaticResource NullToCollapsed}}" />
                           <Border Style="{StaticResource Badge.Warning}" Margin="0,1,6,1" Visibility="{Binding PriceChanged, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="{Binding PriceChangeText}" />
@@ -239,15 +239,15 @@
                           </Border>
                         </WrapPanel>
                       </StackPanel>
-                      <TextBox Grid.Column="2" Style="{StaticResource InlineEdit}" VerticalAlignment="Center" HorizontalAlignment="Right" MinWidth="90"
+                      <TextBox Grid.Column="2" Style="{StaticResource InlineEdit}" VerticalAlignment="Center" HorizontalAlignment="Right" MinWidth="100" FontSize="17" FontWeight="SemiBold"
                                Text="{Binding UnitPrice, Mode=OneWay, Converter={StaticResource Money}}"
                                GotKeyboardFocus="OnPriceFocus" PreviewKeyDown="OnPriceKey" LostKeyboardFocus="OnPriceCommit" />
                       <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button Style="{StaticResource Button.Icon}" Content="−" Focusable="False" Click="OnMinus" />
-                        <TextBlock Text="{Binding Qty}" Width="40" TextAlignment="Center" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" />
-                        <Button Style="{StaticResource Button.Icon}" Content="+" Focusable="False" Click="OnPlus" />
+                        <Button Style="{StaticResource Button.Icon}" Content="−" Focusable="False" Click="OnMinus" Width="36" Height="36" FontSize="16" />
+                        <TextBlock Text="{Binding Qty}" Width="44" TextAlignment="Center" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" />
+                        <Button Style="{StaticResource Button.Icon}" Content="+" Focusable="False" Click="OnPlus" Width="36" Height="36" FontSize="16" />
                       </StackPanel>
-                      <TextBlock Grid.Column="4" Text="{Binding Total, Converter={StaticResource Money}}" Style="{StaticResource Text.MoneyStrong}" FontSize="15" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="4" Text="{Binding Total, Converter={StaticResource Money}}" Style="{StaticResource Text.MoneyStrong}" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
                     </Grid>
                   </Grid>
                 </DataTemplate>

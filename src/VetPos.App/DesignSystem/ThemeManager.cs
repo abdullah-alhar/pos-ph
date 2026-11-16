@@ -21,7 +21,7 @@ public sealed class ThemeManager
     /// <summary>The colour themes: name → (main colour, light tint, deep colour used for the loading screen).</summary>
     public static IReadOnlyList<AccentOption> Accents { get; } =
     [
-        new("Teal", "#0A8A82", "#0A3B39", "#5ED6CB"),
+        new("Teal", "#0F8B8D", "#0B5E60", "#5ED6CB"),
         new("Blue", "#1D64DB", "#0F2A52", "#8AB8FF"),
         new("Green", "#16833A", "#123A20", "#7BD99A"),
         new("Purple", "#6D3FD1", "#2A1A4F", "#B9A0FF"),
