@@ -5,11 +5,15 @@ param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 dotnet tool restore
-dotnet test
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+dotnet test --solution VetPos.slnx --configuration Release
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Remove-Item -Recurse -Force publish\win-x64 -ErrorAction SilentlyContinue
 dotnet publish src\VetPos.App -c Release -o publish\win-x64 -p:Version=$Version
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # Ship no debug symbols (harder to reverse-engineer; the shop only gets the compiled app).
 Get-ChildItem publish\win-x64 -Recurse -Filter *.pdb | Remove-Item -Force
 dotnet vpk pack -u VetPOS.App -v $Version -p publish\win-x64 -e VetPOS.exe -o publish\releases `
   --packTitle "VetPOS" --packAuthors "VetPOS" -i src\VetPos.App\Assets\vetpos.ico --runtime win-x64 --framework vcredist143-x64 --splashImage build\splash.png
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Done: publish\releases" -ForegroundColor Green

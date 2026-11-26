@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -17,7 +18,23 @@ public sealed record ChartBar(string Label, decimal Value, string Detail, bool H
 public sealed class BarChart : FrameworkElement
 {
     public static readonly DependencyProperty BarsProperty = DependencyProperty.Register(nameof(Bars), typeof(IEnumerable), typeof(BarChart),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, OnBarsChanged));
+
+    private static void OnBarsChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
+    {
+        var chart = (BarChart)sender;
+        if (e.OldValue is INotifyCollectionChanged oldBars)
+            CollectionChangedEventManager.RemoveHandler(oldBars, chart.OnBarCollectionChanged);
+        if (e.NewValue is INotifyCollectionChanged newBars)
+            CollectionChangedEventManager.AddHandler(newBars, chart.OnBarCollectionChanged);
+        chart._hover = -1;
+    }
+
+    private void OnBarCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        _hover = -1;
+        InvalidateVisual();
+    }
 
     public IEnumerable? Bars
     {

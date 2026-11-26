@@ -40,7 +40,7 @@ public sealed partial class RootViewModel(IServiceProvider services, AuthService
         }
     }
 
-    private async Task ShowLoginAsync(string? username = null)
+    internal async Task ShowLoginAsync(string? username = null)
     {
         var login = services.GetRequiredService<LoginViewModel>();
         login.Username = username ?? "";
@@ -63,7 +63,7 @@ public sealed partial class RootViewModel(IServiceProvider services, AuthService
         }
     }
 
-    private async Task OpenShellAsync(UserInfo user)
+    internal async Task OpenShellAsync(UserInfo user)
     {
         session.User = user;
         _shell = services.GetRequiredService<ShellViewModel>();

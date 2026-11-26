@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Search or scan a product in Reports → Today to see today's sales and the hourly chart. The date controls on Sales now wrap on smaller screens.
+- The AI assistant can take a spoken question and read an answer using Windows speech. The question can be edited before sending.
+- Updated Gemini and other provider connections. The AI settings test now verifies a tool lookup through to the final answer.
+- Login, Home, and Settings display the version of the running build.
+- GitHub Actions tests Windows builds and captures screenshots of the main screens with demo data. Version tags publish installers and update packages.
+- Added the MIT license for VetPOS source code.
+
 ## 1.0.0-beta.3 (15 Nov 2026): Home page & update notifications
 
 ### Home page (new)

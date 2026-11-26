@@ -15,22 +15,6 @@ namespace VetPos.App.Features.Home;
 
 public partial class HomeView : UserControl
 {
-    // ---------- Version label ("Beta 3") ----------
-
-    public static string AppVersion { get; private set; } = BuildDisplayVersion();
-
-    private static string BuildDisplayVersion()
-    {
-        var v = App.Version; // e.g. "1.0.0-beta.3"
-        var dash = v.IndexOf('-');
-        if (dash >= 0)
-        {
-            var tag = v[(dash + 1)..].Replace('.', ' ');
-            return char.ToUpperInvariant(tag[0]) + tag[1..];
-        }
-        return "v" + v;
-    }
-
     // ---------- Attached property: one-line help under each card title ----------
 
     public static readonly DependencyProperty DescriptionProperty =

@@ -248,12 +248,14 @@ public sealed partial class ShellViewModel : ObservableObject
         return page;
     }
 
-    async partial void OnSelectedChanged(NavItem? value)
+    internal Task<bool> PageReady { get; private set; } = Task.FromResult(true);
+
+    partial void OnSelectedChanged(NavItem? value)
     {
         if (value is null) return;
         var page = PageFor(value.PageType);
         CurrentPage = page;
-        if (page is PageViewModel p) await _ui.Run(p.OnShownAsync);
+        PageReady = page is PageViewModel p ? _ui.Run(p.OnShownAsync) : Task.FromResult(true);
     }
 
     [RelayCommand]

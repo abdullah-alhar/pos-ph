@@ -11,24 +11,97 @@ public sealed class AiUnavailableException(string message, Exception? inner = nu
 
 public sealed record ToolCall(string Id, string Name, string ArgumentsJson);
 
-public sealed record ChatReply(string? Text, IReadOnlyList<ToolCall> ToolCalls);
+public sealed record ChatReply(string? Text, IReadOnlyList<ToolCall> ToolCalls)
+{
+    internal JsonObject? GeminiContent { get; init; }
+    internal JsonNode? ReasoningDetails { get; init; }
+    internal string? RoutedModel { get; init; }
 
-/// <summary>Minimal OpenAI-compatible chat client with native tool calling.</summary>
+    public JsonObject ToAssistantMessage()
+    {
+        var message = new JsonObject
+        {
+            ["role"] = "assistant",
+            ["content"] = Text,
+            ["tool_calls"] = new JsonArray(ToolCalls.Select(call => (JsonNode)new JsonObject
+            {
+                ["id"] = call.Id,
+                ["type"] = "function",
+                ["function"] = new JsonObject { ["name"] = call.Name, ["arguments"] = call.ArgumentsJson },
+            }).ToArray()),
+        };
+        if (GeminiContent is not null) message["gemini_content"] = GeminiContent.DeepClone();
+        if (ReasoningDetails is not null) message["reasoning_details"] = ReasoningDetails.DeepClone();
+        if (RoutedModel is not null) message["openrouter_model"] = RoutedModel;
+        return message;
+    }
+}
+
+/// <summary>Chat client for Gemini's native API and OpenAI-compatible providers.</summary>
 public sealed class AiClient(HttpClient http)
 {
-    public async Task<ChatReply> ChatAsync(string baseUrl, string? apiKey, string model, JsonArray messages, JsonArray? tools, CancellationToken ct)
+    public static JsonObject ToolResult(ToolCall call, string result) => new()
+    {
+        ["role"] = "tool", ["tool_call_id"] = call.Id, ["name"] = call.Name, ["content"] = result,
+    };
+
+    public async Task<TimeSpan> TestConnectionAsync(string url, string? key, string model)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        JsonArray messages = [new JsonObject
+        {
+            ["role"] = "user",
+            ["content"] = "Call check_connection. Then reply with the word returned by the tool.",
+        }];
+        JsonArray tools = [new JsonObject
+        {
+            ["type"] = "function",
+            ["function"] = new JsonObject
+            {
+                ["name"] = "check_connection",
+                ["description"] = "Returns a word to verify the connection.",
+                ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
+            },
+        }];
+
+        try
+        {
+            var first = await ChatAsync(url, key, model, messages, tools, timeout.Token);
+            if (first.ToolCalls.Count == 0 || first.ToolCalls.Any(call => call.Name != "check_connection"))
+                throw new AiUnavailableException("The service answered, but this model could not look up data. Try the recommended model.");
+
+            messages.Add(first.ToAssistantMessage());
+            var word = "PINEAPPLE";
+            foreach (var call in first.ToolCalls)
+                messages.Add(ToolResult(call, word));
+            var final = await ChatAsync(url, key, model, messages, tools, allowTools: false, timeout.Token);
+            if (final.Text?.Contains(word, StringComparison.OrdinalIgnoreCase) != true)
+                throw new AiUnavailableException("The model could call a tool, but it could not read its result. Try the recommended model.");
+            return watch.Elapsed;
+        }
+        catch (OperationCanceledException ex) when (timeout.IsCancellationRequested)
+        {
+            throw new AiUnavailableException("The connection test took too long. Try again in a moment.", ex);
+        }
+    }
+
+    public Task<ChatReply> ChatAsync(string baseUrl, string? apiKey, string model, JsonArray messages, JsonArray? tools, CancellationToken ct) =>
+        ChatAsync(baseUrl, apiKey, model, messages, tools, allowTools: true, ct);
+
+    internal async Task<ChatReply> ChatAsync(string baseUrl, string? apiKey, string model, JsonArray messages, JsonArray? tools, bool allowTools, CancellationToken ct)
     {
         // A model sometimes writes one broken tool call at random (Groq: "tool_use_failed"); asking
         // again almost always works, so try once more before telling the shop.
         try
         {
-            return await SendAsync(baseUrl, apiKey, model, messages, tools, ct);
+            return await SendAsync(baseUrl, apiKey, model, messages, tools, allowTools, ct);
         }
         catch (AiRetryableException)
         {
             try
             {
-                return await SendAsync(baseUrl, apiKey, model, messages, tools, ct);
+                return await SendAsync(baseUrl, apiKey, model, messages, tools, allowTools, ct);
             }
             catch (AiRetryableException ex)
             {
@@ -39,31 +112,54 @@ public sealed class AiClient(HttpClient http)
 
     private sealed class AiRetryableException(string message) : Exception(message);
 
-    private async Task<ChatReply> SendAsync(string baseUrl, string? apiKey, string model, JsonArray messages, JsonArray? tools, CancellationToken ct)
+    private async Task<ChatReply> SendAsync(string baseUrl, string? apiKey, string model, JsonArray messages, JsonArray? tools, bool allowTools, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(baseUrl)) throw new AiUnavailableException("The AI service address is not set (Settings → AI).");
         if (string.IsNullOrWhiteSpace(model)) throw new AiUnavailableException("No AI model is set (Settings → AI).");
-        var body = new JsonObject
+        var endpoint = new Uri(baseUrl.Trim().TrimEnd('/') + "/", UriKind.Absolute);
+        var gemini = endpoint.Host.Equals("generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase);
+        var openRouter = endpoint.Host.Equals("openrouter.ai", StringComparison.OrdinalIgnoreCase);
+        var body = gemini ? GeminiChat.CreateRequest(model, messages, tools, allowTools) : new JsonObject
         {
             ["model"] = model,
             ["messages"] = messages.DeepClone(),
             ["temperature"] = 0.2,
         };
-        if (tools is { Count: > 0 })
+        if (!gemini && body["messages"] is JsonArray wireMessages)
+        {
+            var mistral = endpoint.Host.Equals("api.mistral.ai", StringComparison.OrdinalIgnoreCase);
+            foreach (var message in wireMessages.OfType<JsonObject>())
+            {
+                if (openRouter && model == "openrouter/free"
+                    && StringOf(message["openrouter_model"]) is { } routed && routed.EndsWith(":free", StringComparison.Ordinal))
+                    body["model"] = routed;
+                message.Remove("openrouter_model");
+                if (!mistral && StringOf(message["role"]) == "tool") message.Remove("name");
+            }
+        }
+        if (!gemini && (allowTools || openRouter) && tools is { Count: > 0 })
         {
             body["tools"] = tools.DeepClone();
-            body["tool_choice"] = "auto";
+            body["tool_choice"] = allowTools ? "auto" : "none";
+            if (openRouter) body["provider"] = new JsonObject { ["require_parameters"] = true };
         }
-        using var request = new HttpRequestMessage(HttpMethod.Post, baseUrl.Trim().TrimEnd('/') + "/chat/completions")
+        var address = gemini ? GeminiChat.Address(model) : new Uri(endpoint, "chat/completions");
+        using var request = new HttpRequestMessage(HttpMethod.Post, address)
         {
             Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
         };
-        if (!string.IsNullOrWhiteSpace(apiKey)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            if (gemini) request.Headers.Add("x-goog-api-key", apiKey.Trim());
+            else request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+        }
 
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(gemini ? 30 : 90));
         HttpResponseMessage response;
         try
         {
-            response = await http.SendAsync(request, ct);
+            response = await http.SendAsync(request, deadline.Token);
         }
         catch (HttpRequestException ex)
         {
@@ -104,14 +200,20 @@ public sealed class AiClient(HttpClient http)
             }
             try
             {
-                var msg = JsonNode.Parse(text)?["choices"]?[0]?["message"] ?? throw new AiUnavailableException("The AI gave an empty answer. Try again.");
+                if (gemini) return GeminiChat.ReadReply(text);
+                var payload = JsonNode.Parse(text);
+                var msg = payload?["choices"]?[0]?["message"] ?? throw new AiUnavailableException("The AI gave an empty answer. Try again.");
                 var calls = (msg["tool_calls"] as JsonArray ?? [])
                     .Select(c => new ToolCall(
                         StringOf(c?["id"]) is { Length: > 0 } id ? id : "call_" + Guid.NewGuid().ToString("N")[..12],
                         StringOf(c?["function"]?["name"]) ?? "",
                         ArgumentsOf(c?["function"]?["arguments"])))
                     .Where(c => c.Name.Length > 0).ToList();
-                return new ChatReply(ContentOf(msg["content"]), calls);
+                return new ChatReply(ContentOf(msg["content"]), calls)
+                {
+                    ReasoningDetails = openRouter ? msg["reasoning_details"] : null,
+                    RoutedModel = openRouter ? StringOf(payload?["model"]) : null,
+                };
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
             {
@@ -139,7 +241,7 @@ public sealed class AiClient(HttpClient http)
         }
     }
 
-    private static string? StringOf(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    internal static string? StringOf(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     /// <summary>Arguments come as a JSON string (OpenAI) or as an object (Ollama, some Gemini answers).</summary>
     private static string ArgumentsOf(JsonNode? node) => node switch

@@ -43,6 +43,30 @@ public class ReportAndBackupTests
     }
 
     [Fact]
+    public async Task Daily_product_filter_totals_match_the_hourly_chart_on_a_mixed_bill()
+    {
+        var (test, owner, cashier, supplier, category) = await Shop.OpenAsync();
+        await using var _ = test;
+        var food = await Shop.ProductAsync(test, owner, category, "Pet food", 800m);
+        var treats = await Shop.ProductAsync(test, owner, category, "Treats", 200m);
+        await Shop.ReceiveAsync(test, owner, supplier,
+            new ReceiptLineInput(food, 10, 500m, 800m, "F", Shop.Today.AddDays(90)),
+            new ReceiptLineInput(treats, 10, 100m, 200m, "T", Shop.Today.AddDays(90)));
+        await Shop.SellAsync(test, cashier, new BillCart(Guid.NewGuid(),
+            [Shop.Line(food, 2, 800m), Shop.Line(treats, 1, 200m)], null));
+
+        var reports = test.Get<ReportService>();
+        var summary = await reports.SummaryAsync(Shop.Today, Shop.Today, food);
+        var hours = await reports.SalesByPeriodAsync(Shop.Today, Shop.Today, SalesGrouping.Hour, food);
+        Assert.Equal(1800m, (await reports.SummaryAsync(Shop.Today, Shop.Today)).Sales);
+        Assert.Equal(1600m, summary.Sales);
+        Assert.Equal(600m, summary.Profit);
+        Assert.Equal(2, summary.Units);
+        Assert.Equal(summary.Sales, hours.Sum(row => row.Sales));
+        Assert.Equal(summary.Units, hours.Sum(row => row.Units));
+    }
+
+    [Fact]
     public async Task Backup_restore_brings_back_the_data_and_keeps_a_safety_copy()
     {
         var (test, owner, cashier, sup, cat) = await Shop.OpenAsync();

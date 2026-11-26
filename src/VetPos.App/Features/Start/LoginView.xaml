@@ -1,6 +1,7 @@
 <UserControl x:Class="VetPos.App.Features.Start.LoginView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="clr-namespace:VetPos.App"
              xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
              xmlns:local="clr-namespace:VetPos.App.Features.Start">
   <Grid Background="{DynamicResource Brush.Surface}">
@@ -9,7 +10,8 @@
       <ColumnDefinition Width="3*" />
     </Grid.ColumnDefinitions>
 
-    <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}" Subtitle="Pet food, farm feed, animal medicine and accessories · Beta 3" />
+    <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}"
+                      Subtitle="{Binding Source={x:Static app:App.VersionLabel}, StringFormat='Pet food, farm feed, animal medicine and accessories · {0}'}" />
 
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">

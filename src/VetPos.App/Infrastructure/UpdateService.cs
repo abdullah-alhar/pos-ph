@@ -30,7 +30,7 @@ public sealed partial class UpdateService(SettingsService settings, BackupServic
     /// <summary>Hidden by "Later" until the next version.</summary>
     [ObservableProperty] private bool _dismissed;
 
-    public string CurrentVersion { get; } = typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "";
+    public string CurrentVersion { get; } = App.Version;
 
     public static UpdateManager CreateManager(string? source)
     {

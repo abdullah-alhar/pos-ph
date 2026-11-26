@@ -44,7 +44,7 @@ public sealed partial class ReportsViewModel : PageViewModel
 
     public bool IsOwner => Ui.Session.IsOwner;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(UsesDates), nameof(SectionTitle), nameof(ShowDatePickers))] private ReportSection _section;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(UsesDates), nameof(SectionTitle), nameof(ShowDatePickers), nameof(ReportProduct), nameof(ShowSalesDetails), nameof(ShowSalesOverview), nameof(NoSalesMessage))] private ReportSection _section;
     [ObservableProperty] private DateTime _from;
     [ObservableProperty] private DateTime _to;
     [ObservableProperty] private string _billSearch = "";
@@ -61,78 +61,105 @@ public sealed partial class ReportsViewModel : PageViewModel
     [ObservableProperty] private string _chartTitle = "";
     public bool IsCustomPeriod => Period == SalesPeriod.Custom;
 
-    // ── One product's sales (search box on the Sales report) ──
     public ObservableCollection<ProductRow> ProductSuggestions { get; } = [];
     [ObservableProperty] private string _productSearch = "";
     [ObservableProperty] private bool _showProductSuggestions;
+    [ObservableProperty] private string? _productSearchHint;
     [ObservableProperty] private ProductRow? _pickedSuggestion;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasSalesProduct))] private ProductRow? _salesProduct;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReportProduct), nameof(ShowSalesDetails), nameof(ShowSalesOverview))]
+    private ProductRow? _todayProduct;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ReportProduct))] private ProductRow? _salesProduct;
     [ObservableProperty] private ProductSalesRow? _openProductRow;
-    public bool HasSalesProduct => SalesProduct is not null;
+    public ProductRow? ReportProduct => Section == ReportSection.Today ? TodayProduct : SalesProduct;
+    public bool ShowSalesDetails => Section == ReportSection.Sales || (Section == ReportSection.Today && TodayProduct is not null);
+    public bool ShowSalesOverview => Section == ReportSection.Profit || (Section == ReportSection.Today && TodayProduct is null);
+    public string NoSalesMessage => Section == ReportSection.Today
+        ? "This product has no completed sales today."
+        : "Pick another date or product.";
+
+    private int _searchVersion;
+    private int _refreshVersion;
 
     async partial void OnProductSearchChanged(string value)
     {
+        var version = ++_searchVersion;
         var text = value.Trim();
-        if (text.Length == 0) { ShowProductSuggestions = false; ProductSuggestions.Clear(); return; }
-        var rows = await _catalog.SearchAsync(text, includeInactive: true, limit: 8);
-        if (text != ProductSearch.Trim()) return; // typed on meanwhile
+        ShowProductSuggestions = false;
+        ProductSearchHint = null;
         ProductSuggestions.Clear();
-        foreach (var r in rows) ProductSuggestions.Add(r);
-        ShowProductSuggestions = ProductSuggestions.Count > 0;
+        if (text.Length == 0) return;
+
+        await Task.Delay(160);
+        if (version != _searchVersion) return;
+        await Ui.Run(async () =>
+        {
+            var rows = await _catalog.SearchAsync(text, includeInactive: true, limit: 8);
+            if (version != _searchVersion) return;
+            foreach (var row in rows) ProductSuggestions.Add(row);
+            ShowProductSuggestions = rows.Count > 0;
+            if (rows.Count == 0) ProductSearchHint = "No products match. Try another name or barcode.";
+        });
     }
 
     async partial void OnPickedSuggestionChanged(ProductRow? value)
     {
-        if (value is null) return;
-        await ShowProductSalesAsync(value);
+        if (value is not null) await ShowProductSalesAsync(value);
     }
 
-    /// <summary>Click a product in Today / Profit: open its sales graph.</summary>
     async partial void OnOpenProductRowChanged(ProductSalesRow? value)
     {
         if (value is null) return;
-        var row = (await _catalog.SearchAsync(value.Name, includeInactive: true, limit: 50)).FirstOrDefault(r => r.Id == value.ProductId)
-                  ?? new ProductRow(value.ProductId, value.Name, null, "", default, 0, 0, 0, 0, 0, 0, null, false, true);
+        var section = Section;
+        var version = ++_searchVersion;
         OpenProductRow = null;
-        await ShowProductSalesAsync(row);
-    }
-
-    private async Task ShowProductSalesAsync(ProductRow product)
-    {
-        SalesProduct = product;
-        ProductSearch = "";
-        ShowProductSuggestions = false;
-        PickedSuggestion = null;
-        if (Section != ReportSection.Sales)
+        await Ui.Run(async () =>
         {
-            // Keep the dates the person was looking at.
-            if (Section == ReportSection.Today)
-            {
-                _settingRange = true;
-                From = To = _clock.Today.ToDateTime(TimeOnly.MinValue);
-                _settingRange = false;
-            }
-            if (F == T) Period = SalesPeriod.Day;
-            else { _settingRange = true; Period = SalesPeriod.Custom; _settingRange = false; }
-            Section = ReportSection.Sales;
-        }
-        else await RefreshAsync();
+            var row = await _catalog.GetRowAsync(value.ProductId);
+            if (version == _searchVersion && section == Section && row is not null) await ShowProductSalesAsync(row);
+        });
     }
 
-    /// <summary>Enter in the search box: take the first suggestion.</summary>
+    private Task ShowProductSalesAsync(ProductRow product)
+    {
+        ProductSearch = "";
+        PickedSuggestion = null;
+        if (Section == ReportSection.Today)
+        {
+            TodayProduct = product;
+            return RefreshAsync();
+        }
+
+        SalesProduct = product;
+        if (Section == ReportSection.Sales) return RefreshAsync();
+        _settingRange = true;
+        Period = F == T ? SalesPeriod.Day : SalesPeriod.Custom;
+        _settingRange = false;
+        Section = ReportSection.Sales;
+        return Task.CompletedTask;
+    }
+
     [RelayCommand]
     private async Task PickFirstProduct()
     {
-        if (ProductSuggestions.FirstOrDefault() is { } first) await ShowProductSalesAsync(first);
+        var text = ProductSearch.Trim();
+        if (text.Length == 0) return;
+        var version = _searchVersion;
+        await Ui.Run(async () =>
+        {
+            var matches = await _catalog.SearchAsync(text, includeInactive: true, limit: 1);
+            if (version == _searchVersion && matches.Count > 0)
+                await ShowProductSalesAsync(matches[0]);
+        });
     }
 
-    /// <summary>Back to the whole shop's sales.</summary>
     [RelayCommand]
-    private async Task ClearProduct()
+    private Task ClearProduct()
     {
-        SalesProduct = null;
+        if (Section == ReportSection.Today) TodayProduct = null;
+        else SalesProduct = null;
         ProductSearch = "";
-        await RefreshAsync();
+        return RefreshAsync();
     }
     public bool ShowDatePickers => UsesDates && !(Section == ReportSection.Sales && !IsCustomPeriod);
     public ObservableCollection<ProductSalesRow> ProductRows { get; } = [];
@@ -155,15 +182,15 @@ public sealed partial class ReportsViewModel : PageViewModel
         _ => "Bills",
     };
 
-    private DateOnly F => DateOnly.FromDateTime(Section == ReportSection.Today ? DateTime.Today : From);
-    private DateOnly T => DateOnly.FromDateTime(Section == ReportSection.Today ? DateTime.Today : To);
+    private DateOnly F => Section == ReportSection.Today ? _clock.Today : DateOnly.FromDateTime(From);
+    private DateOnly T => Section == ReportSection.Today ? _clock.Today : DateOnly.FromDateTime(To);
     private string RangeText => F == T ? F.ToString("dddd, dd MMMM yyyy", CultureInfo.InvariantCulture) : $"{F:dd MMM yyyy} – {T:dd MMM yyyy}";
 
     public override Task OnShownAsync() => RefreshAsync();
 
     async partial void OnSectionChanged(ReportSection value)
     {
-        OnPropertyChanged(nameof(ShowDatePickers));
+        ProductSearch = "";
         if (value == ReportSection.Sales && Period != SalesPeriod.Custom) await SetPeriodAsync(DateOnly.FromDateTime(To));
         else await RefreshAsync();
     }
@@ -285,6 +312,7 @@ public sealed partial class ReportsViewModel : PageViewModel
 
     private Task RefreshAsync() => LoadAsync(async () =>
     {
+        var refresh = ++_refreshVersion;
         Tiles.Clear();
         switch (Section)
         {
@@ -292,22 +320,31 @@ public sealed partial class ReportsViewModel : PageViewModel
             case ReportSection.Sales:
             case ReportSection.Profit:
             {
-                var productId = Section == ReportSection.Sales ? SalesProduct?.Id : null;
-                var s = await _reports.SummaryAsync(F, T, productId);
+                var section = Section;
+                var product = section == ReportSection.Profit ? null : ReportProduct;
+                var productId = product?.Id;
+                var from = F;
+                var to = T;
+                var period = Period;
+                bool IsCurrent() => refresh == _refreshVersion && Section == section
+                    && F == from && T == to && Period == period;
+                var s = await _reports.SummaryAsync(from, to, productId);
+                if (!IsCurrent()) return;
                 Summary = s;
                 string? trend = null;
                 var up = true;
-                if (Section == ReportSection.Sales)
+                if (section == ReportSection.Sales)
                 {
                     // Compare with the same length of time just before (a partly finished period is compared to the same days).
-                    var len = T.DayNumber - F.DayNumber;
-                    var (pf, pt) = Period switch
+                    var len = to.DayNumber - from.DayNumber;
+                    var (pf, pt) = period switch
                     {
-                        SalesPeriod.Month => (F.AddMonths(-1), F.AddMonths(-1).AddDays(len)),
-                        SalesPeriod.Year => (F.AddYears(-1), F.AddYears(-1).AddDays(len)),
-                        _ => (F.AddDays(-(len + 1)), F.AddDays(-1)),
+                        SalesPeriod.Month => (from.AddMonths(-1), from.AddMonths(-1).AddDays(len)),
+                        SalesPeriod.Year => (from.AddYears(-1), from.AddYears(-1).AddDays(len)),
+                        _ => (from.AddDays(-(len + 1)), from.AddDays(-1)),
                     };
                     var prev = await _reports.SummaryAsync(pf, pt, productId);
+                    if (!IsCurrent()) return;
                     if (prev.Sales > 0)
                     {
                         var change = Math.Round((s.Sales - prev.Sales) / prev.Sales * 100);
@@ -318,24 +355,25 @@ public sealed partial class ReportsViewModel : PageViewModel
                 }
                 Tiles.Add(new("Sales", Money.Format(s.Sales, true), $"{s.Bills} bill(s)", trend, up));
                 if (productId is null) Tiles.Add(new("Average bill", Money.Format(s.AverageBill, true)));
-                else Tiles.Add(new("Units sold", s.Units.ToString("N0", CultureInfo.InvariantCulture), $"{SalesProduct!.StockQty} left in stock"));
+                else Tiles.Add(new("Units sold", s.Units.ToString("N0", CultureInfo.InvariantCulture), $"{product!.StockQty} left in stock"));
                 Tiles.Add(new("Discounts given", Money.Format(s.Discounts, true)));
                 if (IsOwner) Tiles.Add(new("Profit", Money.Format(s.Profit, true), $"{s.MarginPercent}% margin"));
                 if (s.VoidedBills > 0) Tiles.Add(new("Voided bills", s.VoidedBills.ToString(CultureInfo.InvariantCulture), "not counted"));
                 Days.Clear();
                 Chart.Clear();
-                if (Section == ReportSection.Sales)
+                if (ShowSalesDetails)
                 {
-                    PeriodTitle = PeriodName;
-                    var grouping = ReportService.GroupingFor(F, T);
-                    ChartTitle = (SalesProduct is { } sp ? sp.Name + ": sales" : "Sales") + grouping switch
+                    if (section == ReportSection.Sales) PeriodTitle = PeriodName;
+                    var grouping = ReportService.GroupingFor(from, to);
+                    ChartTitle = (product is { } sp ? sp.Name + ": sales" : "Sales") + grouping switch
                     {
                         SalesGrouping.Hour => " by hour",
                         SalesGrouping.Day => " by day",
                         _ => " by month",
                     };
-                    var rows = await _reports.SalesByPeriodAsync(F, T, grouping, productId);
-                    var now = DateTime.Now;
+                    var rows = await _reports.SalesByPeriodAsync(from, to, grouping, productId);
+                    if (!IsCurrent()) return;
+                    var now = _clock.LocalNow;
                     foreach (var r in rows)
                     {
                         Chart.Add(new ChartBar(r.Label, r.Sales, productId is null ? $"{r.LongLabel}:  {Money.Format(r.Sales, true)}  ·  {r.Bills} bill(s)" : $"{r.LongLabel}:  {r.Units} sold  ·  {Money.Format(r.Sales, true)}",
@@ -344,7 +382,12 @@ public sealed partial class ReportsViewModel : PageViewModel
                     }
                 }
                 ProductRows.Clear();
-                if (Section != ReportSection.Sales) foreach (var p in await _reports.ByProductAsync(F, T, Section == ReportSection.Today ? 10 : null)) ProductRows.Add(p);
+                if (ShowSalesOverview)
+                {
+                    var products = await _reports.ByProductAsync(from, to, section == ReportSection.Today ? 10 : null);
+                    if (!IsCurrent()) return;
+                    foreach (var p in products) ProductRows.Add(p);
+                }
                 break;
             }
             case ReportSection.Stock:
@@ -477,9 +520,10 @@ public sealed partial class ReportsViewModel : PageViewModel
         string period = UsesDates || Section == ReportSection.Today ? RangeText : $"As of {DateTime.Now:dd MMM yyyy HH:mm}";
         switch (Section)
         {
+            case ReportSection.Today when TodayProduct is not null:
             case ReportSection.Sales:
-                return new ExportTable(ChartTitle, period, summary, ["When", SalesProduct is null ? "Bills" : "Units", "Sales", "Discounts", .. IsOwner ? new[] { "Profit" } : []], [false, true, true, true, true],
-                    Days.Select(d => (IReadOnlyList<string>)[d.LongLabel, (SalesProduct is null ? d.Bills : d.Units).ToString(CultureInfo.InvariantCulture), M(d.Sales), M(d.Discounts), .. IsOwner ? new[] { M(d.Profit) } : []]).ToList());
+                return new ExportTable(ChartTitle, period, summary, ["When", "Bills", "Units", "Sales", "Discounts", .. IsOwner ? new[] { "Profit" } : []], [false, true, true, true, true, true],
+                    Days.Select(d => (IReadOnlyList<string>)[d.LongLabel, d.Bills.ToString(CultureInfo.InvariantCulture), d.Units.ToString(CultureInfo.InvariantCulture), M(d.Sales), M(d.Discounts), .. IsOwner ? new[] { M(d.Profit) } : []]).ToList());
             case ReportSection.Stock:
                 return new ExportTable("Stock on hand", period, summary, ["Product", "Category", "Qty", .. IsOwner ? new[] { "Value at cost" } : [], "Value at price"], [false, false, true, true, true],
                     StockRows.Select(r => (IReadOnlyList<string>)[r.Name, r.Category, r.Qty.ToString(CultureInfo.InvariantCulture), .. IsOwner ? new[] { M(r.ValueAtCost) } : [], M(r.ValueAtPrice)]).ToList());

@@ -12,6 +12,7 @@ public sealed record AiEndpoint(string ProviderId, string BaseUrl, string Model,
         var s = await settings.GetAsync<AiSettings>(AiSettings.Key, ct);
         if (!s.Enabled) throw new AiUnavailableException("The AI assistant is switched off. The owner can switch it on in Settings → AI.");
         var provider = AiProviders.Get(s.Provider);
+        if (provider.Id == "github") throw new AiUnavailableException("GitHub Models has closed. Choose another provider in Settings → AI.");
         if (provider.Id == "custom" && !AiProviders.IsSafeUrl(s.CustomUrl)) throw new AiUnavailableException("The AI service address is not set (Settings → AI).");
         var key = string.IsNullOrEmpty(s.EncryptedKey) ? null : keys.Unprotect(s.EncryptedKey);
         if (provider.NeedsKey && string.IsNullOrEmpty(key)) throw new AiUnavailableException($"No key is saved for {provider.Name} (Settings → AI).");

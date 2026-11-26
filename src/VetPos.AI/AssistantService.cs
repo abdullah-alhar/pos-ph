@@ -42,6 +42,7 @@ public sealed class AssistantService(
         var s = await settings.GetAsync<AiSettings>(AiSettings.Key, ct);
         if (!s.Enabled) return "The AI assistant is switched off. The owner can switch it on in Settings → AI.";
         var provider = AiProviders.Get(s.Provider);
+        if (provider.Id == "github") return "GitHub Models has closed. Choose another provider in Settings → AI.";
         if (provider.Id == "custom" && !AiProviders.IsSafeUrl(s.CustomUrl)) return "The AI service address is not set (Settings → AI).";
         if (provider.NeedsKey && string.IsNullOrEmpty(KeyOf(s))) return $"No key is saved for {provider.Name} (Settings → AI).";
         return null;
@@ -63,10 +64,14 @@ public sealed class AssistantService(
         var watch = Stopwatch.StartNew();
         string? answer = null;
         string? error = null;
+        using var deadline = provider.Id == "gemini" ? CancellationTokenSource.CreateLinkedTokenSource(ct) : null;
+        deadline?.CancelAfter(TimeSpan.FromSeconds(55));
+        var requestToken = deadline?.Token ?? ct;
         try
         {
             if (problem is not null) throw new AiUnavailableException(problem);
-            var shop = await settings.GetAsync<ShopSettings>(ShopSettings.Key, ct);
+            var key = KeyOf(s);
+            var shop = await settings.GetAsync<ShopSettings>(ShopSettings.Key, requestToken);
             var messages = new JsonArray { new JsonObject { ["role"] = "system", ["content"] = SystemPrompt(shop.Name, actor) } };
             foreach (var turn in history.TakeLast(10))
                 messages.Add(new JsonObject { ["role"] = turn.FromUser ? "user" : "assistant", ["content"] = turn.Text });
@@ -75,32 +80,33 @@ public sealed class AssistantService(
 
             for (var round = 0; round < MaxRounds; round++)
             {
-                var reply = await client.ChatAsync(baseUrl, KeyOf(s), model, messages, round < MaxRounds - 1 ? definitions : null, ct);
+                var reply = await client.ChatAsync(baseUrl, key, model, messages, definitions, allowTools: round < MaxRounds - 1, requestToken);
                 if (reply.ToolCalls.Count == 0)
                 {
                     answer = string.IsNullOrWhiteSpace(reply.Text) ? "I could not find an answer. Could you ask another way?" : reply.Text.Trim();
                     break;
                 }
-                messages.Add(new JsonObject
+                messages.Add(reply.ToAssistantMessage());
+                for (var i = 0; i < reply.ToolCalls.Count; i++)
                 {
-                    ["role"] = "assistant",
-                    ["content"] = reply.Text,
-                    ["tool_calls"] = new JsonArray(reply.ToolCalls.Select(c => (JsonNode)new JsonObject
+                    var call = reply.ToolCalls[i];
+                    if (i >= 5)
                     {
-                        ["id"] = c.Id,
-                        ["type"] = "function",
-                        ["function"] = new JsonObject { ["name"] = c.Name, ["arguments"] = c.ArgumentsJson },
-                    }).ToArray()),
-                });
-                foreach (var call in reply.ToolCalls.Take(5))
-                {
-                    var result = await tools.RunAsync(call.Name, call.ArgumentsJson, actor, ct, proposals);
+                        messages.Add(AiClient.ToolResult(call, "Too many lookups at once. Try again if needed."));
+                        continue;
+                    }
+                    var result = await tools.RunAsync(call.Name, call.ArgumentsJson, actor, requestToken, proposals);
                     used.Add(new ToolUse(call.Name, call.ArgumentsJson, result));
-                    messages.Add(new JsonObject { ["role"] = "tool", ["tool_call_id"] = call.Id, ["content"] = result });
+                    messages.Add(AiClient.ToolResult(call, result));
                 }
             }
             answer ??= proposals.Count > 0 ? "Check the change below and press Confirm." : "That needed too many steps. Please ask a simpler question.";
             return new AssistantAnswer(answer, used, LinksFor(used, actor), proposals);
+        }
+        catch (OperationCanceledException ex) when (deadline?.IsCancellationRequested == true && !ct.IsCancellationRequested)
+        {
+            error = "Gemini took too long. Try asking one question at a time.";
+            throw new AiUnavailableException(error, ex);
         }
         catch (AiUnavailableException ex)
         {

@@ -26,6 +26,13 @@ Ctrl+L locks the screen when you step away; the open bill stays.
 | Print the last bill again | F10 |
 | Find an old bill, print it again or change it | F7 |
 
+## Find sales and bills
+
+* Click the VetPOS logo to return to Home, or click **Search** to find a product, bill, or screen.
+* To check what sold today, open **Reports → Today → Find product sales**. Type part of the name or
+  scan the barcode and press Enter. Select **All products** to return to the shop totals.
+* For other dates, open **Reports → Sales** and choose a day, week, month, year, or your own dates.
+
 ## Stock and products
 
 * **Stock in:** a new delivery. Supplier and invoice number are optional.
@@ -41,7 +48,10 @@ Ctrl+L locks the screen when you step away; the open bill stays.
 * Owner can also ask it to make changes: "create kitten food 1kg, 3kg, 5kg from 1899, each 2000 more",
   "change Pedigree 10kg price to 6400", "we got 10 bags of Pedigree 10kg". It shows a card;
   **nothing is saved until you press Confirm**.
-* Set it up once: Settings → AI → paste a free Groq or Gemini key → Save → **Test AI**.
+* Click **Speak**, say your question, then review the words and press **Ask**. **Read answer** speaks
+  the latest reply. Voice uses the speech language, microphone, and voice installed in Windows.
+* To set it up, open **Settings → AI**, choose a provider and paste its key. Click **Test AI**,
+  then **Save** once it passes. Leave **Model** empty to use the recommended one.
 
 ## Your shop's look
 

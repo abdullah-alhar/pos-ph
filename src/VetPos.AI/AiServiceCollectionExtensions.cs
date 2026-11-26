@@ -54,6 +54,11 @@ public static class AiServiceCollectionExtensions
                 socket.Dispose();
                 last = ex;
             }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
         throw new HttpRequestException($"Could not connect to {context.DnsEndPoint.Host}.", last);
     }
