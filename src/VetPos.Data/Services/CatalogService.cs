@@ -59,8 +59,8 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
         if (t.Length > 0)
         {
             // Exact barcode (main or extra) …
-            var ids = await db.Products.Where(p => p.Barcode == t).Select(p => p.Id)
-                .Concat(db.ProductBarcodes.Where(b => b.Code == t).Select(b => b.ProductId)).ToListAsync(ct);
+            var exactIds = (await db.Products.Where(p => p.Barcode == t).Select(p => p.Id)
+                .Concat(db.ProductBarcodes.Where(b => b.Code == t).Select(b => b.ProductId)).ToListAsync(ct)).ToHashSet();
             // … or every word somewhere (start, middle or end) in the name, generic name, barcode or category.
             var words = db.Products.AsQueryable();
             var parts = t.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -72,13 +72,14 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
                     || (p.Barcode != null && EF.Functions.Like(p.Barcode, like, "\\"))
                     || EF.Functions.Like(p.Category!.Name, like, "\\"));
             }
-            ids.AddRange(await words.Select(p => p.Id).Take(Math.Max(limit * 8, 200)).ToListAsync(ct));
+            var ids = await words.Select(p => p.Id).Take(Math.Max(limit * 8, 200)).ToListAsync(ct);
+            ids.AddRange(exactIds);
             q = q.Where(p => ids.Contains(p.Id));
             // Best match first: exact barcode, then names that start with the text, then a word that
             // starts with it, then anywhere.
             var found = await q.ToListAsync(ct);
             return found
-                .OrderBy(p => Rank(p, t, parts))
+                .OrderBy(p => exactIds.Contains(p.Id) ? 0 : Rank(p, t, parts))
                 .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
                 .Take(limit).Select(Row).ToList();
         }
@@ -88,7 +89,6 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
 
     private static int Rank(Product p, string text, string[] words)
     {
-        if (string.Equals(p.Barcode, text, StringComparison.OrdinalIgnoreCase)) return 0;
         if (p.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase)) return 1;
         var nameWords = p.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.All(w => nameWords.Any(n => n.StartsWith(w, StringComparison.OrdinalIgnoreCase)))) return 2;
@@ -104,6 +104,14 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
         await using var db = await dbFactory.CreateDbContextAsync(ct);
         var id = await db.Products.Where(p => p.Barcode == code).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct);
         return id ?? await db.ProductBarcodes.Where(b => b.Code == code).Select(b => (int?)b.ProductId).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<ProductRow?> GetRowAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var product = await db.Products.AsNoTracking().Include(p => p.Category).Include(p => p.Batches)
+            .SingleOrDefaultAsync(p => p.Id == id, ct);
+        return product is null ? null : Row(product);
     }
 
     public async Task<ProductDetail?> GetAsync(int id, CancellationToken ct = default)

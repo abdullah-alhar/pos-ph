@@ -66,4 +66,57 @@ public class AiClientTests
         Assert.Contains("key was not accepted", ex.Message, StringComparison.Ordinal);
         Assert.Contains("Please pass a valid API key", ex.Message, StringComparison.Ordinal);
     }
+    [Fact]
+    public async Task Gemini_passes_native_tool_context_through_the_connection_test()
+    {
+        var fake = new FakeAi(request =>
+        {
+            Assert.Equal("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent", request.RequestUri!.AbsoluteUri);
+            Assert.Equal("test-key", Assert.Single(request.Headers.GetValues("x-goog-api-key")));
+            return Raw(HttpStatusCode.OK, """
+                {"candidates":[{"content":{"role":"model","parts":[
+                    {"text":"internal","thought":true},
+                    {"functionCall":{"id":"lookup","name":"check_connection","args":{}},"thoughtSignature":"opaque-context"}
+                ]}}]}
+                """);
+        }, _ => Raw(HttpStatusCode.OK, """
+            {"candidates":[{"content":{"role":"model","parts":[{"text":"PINEAPPLE"}]}}]}
+            """));
+        var provider = AiProviders.Get("gemini");
+        using var http = new HttpClient(fake);
+        await new AiClient(http).TestConnectionAsync(provider.BaseUrl, "test-key", provider.DefaultModel);
+
+        Assert.Equal("MINIMAL", fake.Sent[0]["generationConfig"]!["thinkingConfig"]!["thinkingLevel"]!.GetValue<string>());
+        Assert.Equal("check_connection", fake.Sent[0]["tools"]![0]!["functionDeclarations"]![0]!["name"]!.GetValue<string>());
+        Assert.Null(fake.Sent[0]["temperature"]);
+        var final = fake.Sent[1];
+        Assert.Equal("opaque-context", final["contents"]![1]!["parts"]![1]!["thoughtSignature"]!.GetValue<string>());
+        var result = final["contents"]![2]!["parts"]![0]!["functionResponse"]!;
+        Assert.Equal("lookup", result["id"]!.GetValue<string>());
+        Assert.Equal("check_connection", result["name"]!.GetValue<string>());
+        Assert.Equal("PINEAPPLE", result["response"]!["output"]!.GetValue<string>());
+        Assert.Equal("NONE", final["toolConfig"]!["functionCallingConfig"]!["mode"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Connection_test_rejects_a_model_that_cannot_read_a_tool_result()
+    {
+        var fake = new FakeAi(FakeAi.ToolCall("check_connection", "{}"), FakeAi.Answer("I don't know."));
+        using var http = new HttpClient(fake);
+        var ex = await Assert.ThrowsAsync<AiUnavailableException>(() =>
+            new AiClient(http).TestConnectionAsync("https://ai.test/v1", "key", "model"));
+        Assert.Contains("could not read its result", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OpenRouter_requires_tool_support_when_selecting_a_provider()
+    {
+        var fake = new FakeAi(FakeAi.ToolCall("check_connection", "{}"), FakeAi.Answer("PINEAPPLE"));
+        var provider = AiProviders.Get("openrouter");
+        using var http = new HttpClient(fake);
+        await new AiClient(http).TestConnectionAsync(provider.BaseUrl, "key", provider.DefaultModel);
+
+        Assert.Equal("openrouter/free", fake.Sent[0]["model"]!.GetValue<string>());
+        Assert.True(fake.Sent[0]["provider"]!["require_parameters"]!.GetValue<bool>());
+    }
 }

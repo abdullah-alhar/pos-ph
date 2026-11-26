@@ -49,6 +49,18 @@ public class AuthAndCatalogTests
         Assert.Single(await catalog.SearchAsync("222"));
     }
 
+    [Fact]
+    public async Task An_exact_extra_barcode_ranks_ahead_of_a_product_name()
+    {
+        var (test, owner, _, _, cat) = await Shop.OpenAsync();
+        await using var _ = test;
+        var catalog = test.Get<CatalogService>();
+        var product = await catalog.SaveAsync(new ProductInput(null, "Pet food", "111", ["222"], cat, ProductUnit.Piece, 1, 2, 0, false, true), owner);
+        await Shop.ProductAsync(test, owner, cat, "222 supplement", 50m);
+
+        Assert.Equal(product, Assert.Single(await catalog.SearchAsync("222", limit: 1)).Id);
+    }
+
     [Theory]
     [InlineData("itte")]      // middle of "Kitten"
     [InlineData("anin")]      // middle of "Canin"

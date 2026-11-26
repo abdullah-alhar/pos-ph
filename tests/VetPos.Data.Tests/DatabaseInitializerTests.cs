@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace VetPos.Data.Tests;
@@ -45,11 +44,13 @@ public class DatabaseInitializerTests
     {
         await using var test = TestDatabase.Create();
         test.Paths.EnsureCreated();
-        await File.WriteAllTextAsync(test.Paths.DatabaseFile, "this is not a database, just text that fills the header area of the file");
+        const string contents = "this is not a database, just text that fills the header area of the file";
+        await File.WriteAllTextAsync(test.Paths.DatabaseFile, contents);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => test.Initializer.InitializeAsync(false));
+        await Assert.ThrowsAsync<DatabaseDamagedException>(() => test.Initializer.InitializeAsync(false));
 
-        Assert.StartsWith("this is not a database", await File.ReadAllTextAsync(test.Paths.DatabaseFile), StringComparison.Ordinal);
-        SqliteConnection.ClearAllPools();
+        await using var file = new FileStream(test.Paths.DatabaseFile, FileMode.Open, FileAccess.Read, FileShare.None);
+        using var reader = new StreamReader(file);
+        Assert.Equal(contents, await reader.ReadToEndAsync());
     }
 }

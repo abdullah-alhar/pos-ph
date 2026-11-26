@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -115,13 +114,26 @@ public sealed partial class SettingsViewModel : PageViewModel
     [ObservableProperty] private string _aiKeyHint = "";
     public IReadOnlyList<AiProvider> ProviderOptions { get; } = AiProviders.All;
     public string? AiKeyHelp => AiProvider?.KeyHelp;
+    [ObservableProperty] private string? _aiTestStatus;
+    private AiSettings _savedAi = new();
 
     // Appearance / about
     [ObservableProperty] private string _updateSource = "";
     public string Version { get; } = App.Version;
     public string DataFolder => _paths.Root;
 
-    partial void OnAiProviderChanged(AiProvider? value) => OnPropertyChanged(nameof(AiKeyHelp));
+    partial void OnAiProviderChanged(AiProvider? value)
+    {
+        OnPropertyChanged(nameof(AiKeyHelp));
+        AiModel = value?.Id == _savedAi.Provider ? _savedAi.Model : "";
+        AiKeyHint = AiKeyLabel(value?.Id);
+        AiTestStatus = null;
+    }
+
+    private string AiKeyLabel(string? providerId) =>
+        providerId == _savedAi.Provider && !string.IsNullOrEmpty(_savedAi.EncryptedKey)
+            ? $"Saved key: {_savedAi.KeyHint}"
+            : "Paste the key for this provider.";
 
     public override Task OnShownAsync() => LoadAsync(async () =>
     {
@@ -149,11 +161,12 @@ public sealed partial class SettingsViewModel : PageViewModel
         (DailyBackup, KeepBackups, ExtraFolder) = (b.DailyBackup, b.Keep.ToString(CultureInfo.InvariantCulture), b.ExtraFolder);
 
         var ai = await _settings.GetAsync<AiSettings>(AiSettings.Key);
+        _savedAi = ai;
         AiEnabled = ai.Enabled;
         AiProvider = AiProviders.Get(ai.Provider);
         AiModel = ai.Model;
         AiCustomUrl = ai.CustomUrl;
-        AiKeyHint = string.IsNullOrEmpty(ai.EncryptedKey) ? "No key saved" : $"Key saved: {ai.KeyHint}";
+        AiKeyHint = AiKeyLabel(ai.Provider);
 
         AccentChoice = _theme.Accent;
         UpdateSource = (await _settings.GetAsync<UpdateSettings>(UpdateSettings.Key)).Source;
@@ -305,65 +318,59 @@ public sealed partial class SettingsViewModel : PageViewModel
     [RelayCommand]
     private void OpenBackupFolder() => Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_paths.BackupsDir}\"") { UseShellExecute = true });
 
+    private (AiProvider Provider, string Url, string Model) SelectedAi()
+    {
+        var provider = AiProvider ?? AiProviders.All[0];
+        if (provider.Id == "github") throw new PosException("GitHub Models has closed. Choose another AI provider.");
+        var url = provider.Id == "custom" ? AiCustomUrl.Trim() : provider.BaseUrl;
+        if (provider.Id == "custom" && !AiProviders.IsSafeUrl(url))
+            throw new PosException("Enter an https:// address, or http:// for a service on the shop network.");
+        var model = string.IsNullOrWhiteSpace(AiModel) ? provider.DefaultModel : AiModel.Trim();
+        if (model.Length == 0) throw new PosException("Enter the model name for this service.");
+        return (provider, url, model);
+    }
+
+    private static bool CanReuseKey(AiSettings saved, AiProvider provider, string url) =>
+        saved.Provider == provider.Id && (provider.Id != "custom" ||
+            string.Equals(saved.CustomUrl.Trim().TrimEnd('/'), url.TrimEnd('/'), StringComparison.Ordinal));
+
     [RelayCommand]
     private Task SaveAi(System.Windows.Controls.PasswordBox keyBox) => Ui.Run(async () =>
     {
+        var (provider, url, _) = SelectedAi();
         var current = await _settings.GetAsync<AiSettings>(AiSettings.Key);
-        var provider = AiProvider ?? AiProviders.All[0];
-        if (provider.Id == "custom" && !AiProviders.IsSafeUrl(AiCustomUrl))
-            throw new PosException("The address must start with https:// (or http:// only for this computer or the shop network).");
         var next = current with { Enabled = AiEnabled, Provider = provider.Id, Model = AiModel.Trim(), CustomUrl = AiCustomUrl.Trim() };
-        if (!string.IsNullOrWhiteSpace(keyBox.Password))
-        {
-            // Saving a key means "use the AI": switch it on too.
-            next = next with { EncryptedKey = _keys.Protect(keyBox.Password.Trim()), KeyHint = AiProviders.KeyHint(keyBox.Password), Enabled = true };
-            AiEnabled = true;
-            keyBox.Clear();
-        }
+        if (!CanReuseKey(current, provider, url)) next = next with { EncryptedKey = "", KeyHint = "" };
+        var key = keyBox.Password.Trim();
+        if (key.Length > 0)
+            next = next with { EncryptedKey = _keys.Protect(key), KeyHint = AiProviders.KeyHint(key), Enabled = true };
         if (next.Enabled && provider.NeedsKey && string.IsNullOrEmpty(next.EncryptedKey))
-            throw new PosException($"Paste the key from {provider.Name} first ({provider.KeyHelp}).");
+            throw new PosException($"Paste the key for {provider.Name} first.");
         await _settings.SaveAsync(AiSettings.Key, next, Ui.Session.Actor);
-        AiKeyHint = string.IsNullOrEmpty(next.EncryptedKey) ? "No key saved" : $"Key saved: {next.KeyHint}";
-        Ui.Toasts.Show("AI settings saved. The key is encrypted on this PC.");
+        _savedAi = next;
+        AiEnabled = next.Enabled;
+        AiKeyHint = AiKeyLabel(provider.Id);
+        keyBox.Clear();
+        Ui.Toasts.Show("AI settings saved.");
     });
 
     [RelayCommand]
-    private Task TestAi() => Ui.Run(async () =>
+    private async Task TestAi(System.Windows.Controls.PasswordBox keyBox)
     {
-        var s = await _settings.GetAsync<AiSettings>(AiSettings.Key);
-        var provider = AiProviders.Get(s.Provider);
-        var key = string.IsNullOrEmpty(s.EncryptedKey) ? null : _keys.Unprotect(s.EncryptedKey);
-        if (provider.NeedsKey && key is null) throw new PosException("Save the key first.");
-        if (string.IsNullOrEmpty(s.EncryptedKey) == false && key is null)
-            throw new PosException("The saved key cannot be read on this Windows account. Paste the key again and save.");
-        var url = provider.Id == "custom" ? s.CustomUrl : provider.BaseUrl;
-        var model = string.IsNullOrWhiteSpace(s.Model) ? provider.DefaultModel : s.Model;
-        Ui.Toasts.Show($"Testing {provider.Name} ({model})… this takes a few seconds.", DesignSystem.Controls.ToastKind.Info);
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        // 1) The connection and the key.
-        var reply = await _ai.ChatAsync(url, key, model,
-            new JsonArray { new JsonObject { ["role"] = "user", ["content"] = "Reply with the single word OK." } }, null, default);
-        // 2) Looking up shop data (tool calling), which the assistant needs.
-        var tools = new JsonArray
+        AiTestStatus = "Checking the selected AI service…";
+        if (await Ui.Run(async () =>
         {
-            new JsonObject
-            {
-                ["type"] = "function",
-                ["function"] = new JsonObject
-                {
-                    ["name"] = "get_shop_time",
-                    ["description"] = "Returns the shop's current time.",
-                    ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
-                },
-            },
-        };
-        var toolReply = await _ai.ChatAsync(url, key, model,
-            new JsonArray { new JsonObject { ["role"] = "user", ["content"] = "What time is it at the shop? Use the tool." } }, tools, default);
-        if (toolReply.ToolCalls.Count == 0)
-            throw new PosException($"The connection works, but the model \"{model}\" did not look up data. Choose another model (clear the Model box for the recommended one).");
-        if (!s.Enabled) throw new PosException("The AI works, but it is switched off. Tick \"Switch the assistant on\" and save.");
-        Ui.Toasts.Show($"AI works ({watch.Elapsed.TotalSeconds:0.0} s): it answered \"{reply.Text?.Trim()}\" and can look up your shop's data.");
-    });
+            var (provider, url, model) = SelectedAi();
+            var typedKey = keyBox.Password.Trim();
+            var key = typedKey.Length > 0 ? typedKey
+                : CanReuseKey(_savedAi, provider, url) && _savedAi.EncryptedKey.Length > 0 ? _keys.Unprotect(_savedAi.EncryptedKey) : null;
+            if (provider.NeedsKey && string.IsNullOrWhiteSpace(key))
+                throw new PosException($"Paste the key for {provider.Name} first.");
+            var result = await _ai.TestConnectionAsync(url, key, model);
+            AiTestStatus = $"{provider.Name} can look up data ({result.TotalSeconds:0.0} s). Press Save to use these settings.";
+        })) return;
+        AiTestStatus = "The connection test failed. See the message on screen.";
+    }
 
     /// <summary>The colour swatches in Settings → Appearance.</summary>
     public IReadOnlyList<AccentOption> Accents { get; } = ThemeManager.Accents;

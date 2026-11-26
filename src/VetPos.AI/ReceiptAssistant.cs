@@ -40,29 +40,27 @@ public sealed class ReceiptAssistant(AiClient client, SettingsService settings, 
                 new JsonObject { ["role"] = "system", ["content"] = SystemPrompt() },
                 new JsonObject { ["role"] = "user", ["content"] = $"Current receipt design:\n{Describe(design)}\n\nRequest: {request}" },
             };
+            var definitions = Tools();
             for (var round = 0; round < MaxRounds; round++)
             {
-                var answer = await client.ChatAsync(endpoint.BaseUrl, endpoint.Key, endpoint.Model, messages, round < MaxRounds - 1 ? Tools() : null, ct);
+                var answer = await client.ChatAsync(endpoint.BaseUrl, endpoint.Key, endpoint.Model, messages, definitions, allowTools: round < MaxRounds - 1, ct);
                 if (answer.ToolCalls.Count == 0)
                 {
                     reply = string.IsNullOrWhiteSpace(answer.Text) ? (changes.Count > 0 ? "Done." : "I could not change that. Try saying it another way.") : answer.Text.Trim();
                     break;
                 }
-                messages.Add(new JsonObject
+                messages.Add(answer.ToAssistantMessage());
+                for (var i = 0; i < answer.ToolCalls.Count; i++)
                 {
-                    ["role"] = "assistant",
-                    ["content"] = answer.Text,
-                    ["tool_calls"] = new JsonArray(answer.ToolCalls.Select(c => (JsonNode)new JsonObject
+                    var call = answer.ToolCalls[i];
+                    if (i >= 12)
                     {
-                        ["id"] = c.Id, ["type"] = "function",
-                        ["function"] = new JsonObject { ["name"] = c.Name, ["arguments"] = c.ArgumentsJson },
-                    }).ToArray()),
-                });
-                foreach (var call in answer.ToolCalls.Take(12))
-                {
+                        messages.Add(AiClient.ToolResult(call, "Too many changes at once. Try again if needed."));
+                        continue;
+                    }
                     var result = Apply(design, call.Name, call.ArgumentsJson);
                     if (!result.StartsWith("error", StringComparison.Ordinal)) changes.Add(result);
-                    messages.Add(new JsonObject { ["role"] = "tool", ["tool_call_id"] = call.Id, ["content"] = result + "\n\nDesign now:\n" + Describe(design) });
+                    messages.Add(AiClient.ToolResult(call, result + "\n\nDesign now:\n" + Describe(design)));
                 }
             }
             reply ??= changes.Count > 0 ? "Done." : "That needed too many steps. Please ask one change at a time.";

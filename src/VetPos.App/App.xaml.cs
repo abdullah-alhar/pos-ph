@@ -32,8 +32,19 @@ public partial class App : Application
         typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
         ?? "0.0.0";
 
+    public static string VersionLabel { get; } = FormatVersionLabel();
+
+    private static string FormatVersionLabel()
+    {
+        var dash = Version.IndexOf('-');
+        if (dash < 0) return $"v{Version}";
+        var prerelease = Version[(dash + 1)..].Replace('.', ' ');
+        return char.ToUpperInvariant(prerelease[0]) + prerelease[1..];
+    }
+
     protected override async void OnStartup(StartupEventArgs e)
     {
+        var preview = e.Args is ["--startup-preview", var imagePath] ? imagePath : null;
         // The loading window shows at once, so the shop never wonders whether VetPOS is opening.
         StartSplash? splash = null;
         try { splash = StartSplash.Show(); }
@@ -43,18 +54,21 @@ public partial class App : Application
         }
         base.OnStartup(e);
 
-        _singleInstance = SingleInstance.TryAcquire(() => Dispatcher.BeginInvoke(BringToFront));
-        if (_singleInstance is null)
+        if (preview is null)
         {
-            CloseSplash(splash, TimeSpan.Zero);
-            Shutdown(0);
-            return;
+            _singleInstance = SingleInstance.TryAcquire(() => Dispatcher.BeginInvoke(BringToFront));
+            if (_singleInstance is null)
+            {
+                CloseSplash(splash, TimeSpan.Zero);
+                Shutdown(0);
+                return;
+            }
         }
 
         if (SystemCheck.Blocking() is { } blocking)
         {
             CloseSplash(splash, TimeSpan.Zero);
-            MessageBox.Show(blocking, "VetPOS", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (preview is null) MessageBox.Show(blocking, "VetPOS", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(3);
             return;
         }
@@ -62,13 +76,13 @@ public partial class App : Application
         AppPaths paths;
         try
         {
-            paths = AppPaths.Default();
+            paths = preview is null ? AppPaths.Default() : StartupPreview.CreatePaths(preview);
             paths.EnsureCreated();
         }
         catch (Exception ex)
         {
             CloseSplash(splash, TimeSpan.Zero);
-            MessageBox.Show(
+            if (preview is null) MessageBox.Show(
                 "VetPOS cannot create its data folder.\n\n" + ex.Message,
                 "VetPOS", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
@@ -82,7 +96,7 @@ public partial class App : Application
         try
         {
             splash?.Status("Opening the shop's data…");
-            _host = BuildHost(e.Args, paths);
+            _host = BuildHost(preview is null ? e.Args : [], paths);
             await _host.StartAsync();
 
             var addSampleData = e.Args.Contains("--sample-data", StringComparer.OrdinalIgnoreCase);
@@ -98,15 +112,22 @@ public partial class App : Application
             MainWindow = window;
             var logo = _host.Services.GetRequiredService<LogoService>();
             logo.EnsureIcon();
-            logo.RefreshShortcuts();
-            await _host.Services.GetRequiredService<RootViewModel>().StartAsync(); // theme is applied here, before the window shows
+            if (preview is null) logo.RefreshShortcuts();
+            var root = _host.Services.GetRequiredService<RootViewModel>();
+            await root.StartAsync(); // theme is applied here, before the window shows
             ErrorHandling.Toasts = _host.Services.GetRequiredService<IToastService>();
             window.Show();
             CloseSplash(splash, TimeSpan.FromMilliseconds(200));
+            if (preview is not null)
+            {
+                await StartupPreview.CaptureScreensAsync(window, root, _host.Services, preview);
+                Shutdown(0);
+                return;
+            }
             if (SystemCheck.Warning(paths) is { } warning)
                 _host.Services.GetRequiredService<IToastService>().Show(warning, ToastKind.Warning);
         }
-        catch (DatabaseDamagedException ex)
+        catch (DatabaseDamagedException ex) when (preview is null)
         {
             CloseSplash(splash, TimeSpan.Zero);
             var reference = ErrorHandling.NewReference();
@@ -150,6 +171,11 @@ public partial class App : Application
         {
             var reference = ErrorHandling.NewReference();
             Log.Fatal(ex, "Start-up failed {Reference}", reference);
+            if (preview is not null)
+            {
+                Shutdown(1);
+                return;
+            }
             var message = ErrorHandling.IsBlockedByWindows(ex)
                 ? ErrorHandling.BlockedMessage
                 : (ErrorHandling.Describe(ex) is { } known ? known + "\n\n" : "") +

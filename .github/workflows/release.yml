@@ -1,0 +1,153 @@
+name: VetPOS release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version for the test installer (for example, 1.0.1-beta.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build VetPOS
+    if: github.event.deleted != true
+    runs-on: windows-2025
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Run tests
+        if: github.event_name != 'workflow_dispatch' && github.ref_type != 'tag'
+        run: dotnet test --solution VetPos.slnx --configuration Release
+
+      - name: Build the app for the startup check
+        if: github.event_name != 'workflow_dispatch' && github.ref_type != 'tag'
+        run: dotnet publish src/VetPos.App --configuration Release --output publish/win-x64
+
+      - name: Validate release version
+        id: version
+        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+        env:
+          PREVIEW_VERSION: ${{ inputs.version }}
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { "v$env:PREVIEW_VERSION" } else { $env:GITHUB_REF_NAME }
+          $number = '(?:0|[1-9][0-9]*)'
+          $identifier = "(?:$number|[0-9a-z-]*[a-z-][0-9a-z-]*)"
+          if ($tag -cnotmatch "\Av$number\.$number\.$number(?:-$identifier(?:\.$identifier)*)?\z") {
+            throw 'Use vMAJOR.MINOR.PATCH for tags or MAJOR.MINOR.PATCH for manual runs. A lowercase prerelease suffix such as -beta.1 is optional.'
+          }
+          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
+
+      - name: Test and package the Windows installer
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./build/release.ps1 -Version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $requiredFiles = @(
+            'VetPOS.App-win-Setup.exe'
+            'VetPOS.App-win-Portable.zip'
+            "VetPOS.App-${env:VERSION}-full.nupkg"
+            'releases.win.json'
+          )
+          foreach ($file in $requiredFiles) {
+            if (-not (Test-Path "publish/releases/$file" -PathType Leaf)) {
+              throw "Missing release file $file"
+            }
+          }
+
+      - name: Check Windows startup and capture the main screens
+        run: |
+          $preview = Join-Path $env:RUNNER_TEMP 'vetpos-preview'
+          New-Item -ItemType Directory -Path $preview -Force | Out-Null
+          $image = Join-Path $preview 'setup.png'
+          $app = Start-Process -FilePath 'publish/win-x64/VetPOS.exe' `
+            -ArgumentList '--startup-preview', ('"{0}"' -f $image) -PassThru
+          try {
+            if (-not $app.WaitForExit(60000)) { throw 'VetPOS did not finish starting within 60 seconds.' }
+            if ($app.ExitCode -ne 0) { throw "VetPOS exited with code $($app.ExitCode)." }
+            if (-not (Test-Path (Join-Path $preview 'today-product.png') -PathType Leaf)) {
+              throw 'VetPOS did not complete the Windows screen checks.'
+            }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+          }
+
+      - name: Upload Windows screenshots and startup logs
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Windows-startup-preview
+          path: |
+            ${{ runner.temp }}/vetpos-preview/*.png
+            ${{ runner.temp }}/vetpos-preview/data-*/logs/*.log
+          if-no-files-found: ignore
+          overwrite: true
+
+      - name: Upload installer and update files
+        if: steps.version.outputs.version != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: VetPOS-${{ steps.version.outputs.version }}-win-x64
+          path: publish/releases/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+
+  publish:
+    name: Publish GitHub release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: vetpos-release-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: VetPOS-${{ needs.build.outputs.version }}-win-x64
+          path: release-files
+
+      - name: Publish installer and update files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          release_flags=(--prerelease=false)
+          if [[ "$VERSION" == *-* ]]; then
+            release_flags=(--prerelease --latest=false)
+          fi
+
+          if is_draft=$(gh release view "$tag" --json isDraft --jq .isDraft); then
+            if [[ "$is_draft" != true ]]; then
+              echo "Release $tag is already published."
+              exit 0
+            fi
+            gh release upload "$tag" release-files/* --clobber
+            gh release edit "$tag" --draft=false "${release_flags[@]}"
+          else
+            gh release create "$tag" release-files/* --verify-tag --title "VetPOS $VERSION" --generate-notes "${release_flags[@]}"
+          fi

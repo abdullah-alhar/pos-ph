@@ -25,6 +25,7 @@
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\vetpos-256.png" />
     <Resource Include="Assets\vetpos.ico" />
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets\Fonts\*LICENSE*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
@@ -42,6 +43,6 @@
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="ClosedXML" />
     <PackageReference Include="Velopack" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="System.Speech" />
   </ItemGroup>
 </Project>

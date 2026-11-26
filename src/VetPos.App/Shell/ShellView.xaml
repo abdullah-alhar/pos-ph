@@ -110,16 +110,19 @@
       </Border.Resources>
       <DockPanel>
         <!-- Shop logo + name -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,16,10,10">
-          <Border Width="48" Height="48" CornerRadius="12" Background="White" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1" Padding="5">
-            <Grid>
-              <Image Source="/VetPOS;component/Assets/vetpos-256.png" Visibility="{Binding ShopLogo, Converter={StaticResource NullToVisible}}" />
-              <Image Source="{Binding ShopLogo}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-            </Grid>
-          </Border>
-          <TextBlock Text="VetPOS" Style="{StaticResource RailLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Brush.SidebarText}" />
-        </StackPanel>
-        <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding OpenPaletteCommand}" ToolTip="Find anything (Ctrl+K)" Margin="0,0,0,6">
+        <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding GoHomeCommand}"
+                ToolTip="Home (Ctrl+0)" AutomationProperties.Name="Home" Margin="0,10,0,6">
+          <StackPanel Orientation="Horizontal">
+            <Border Width="48" Height="48" CornerRadius="12" Background="White" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1" Padding="5">
+              <Grid>
+                <Image Source="/VetPOS;component/Assets/vetpos-256.png" Visibility="{Binding ShopLogo, Converter={StaticResource NullToVisible}}" />
+                <Image Source="{Binding ShopLogo}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+              </Grid>
+            </Border>
+            <TextBlock Text="VetPOS" Style="{StaticResource RailLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Brush.SidebarText}" />
+          </StackPanel>
+        </Button>
+        <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding OpenPaletteCommand}" ToolTip="Find products, bills and screens (Ctrl+K)" AutomationProperties.Name="Search" Margin="0,0,0,6">
           <StackPanel Orientation="Horizontal">
             <TextBlock Text="&#xE721;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
             <TextBlock Text="Search" Style="{StaticResource RailLabel}" />

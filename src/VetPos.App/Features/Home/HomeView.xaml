@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
+             xmlns:app="clr-namespace:VetPos.App"
              xmlns:shell="clr-namespace:VetPos.App.Shell"
              xmlns:local="clr-namespace:VetPos.App.Features.Home"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance local:HomeViewModel}"
@@ -226,7 +227,7 @@
             <TextBlock Text="{Binding Greeting}" Style="{StaticResource Text.PageTitle}" VerticalAlignment="Bottom" />
             <Border Style="{StaticResource Badge.Accent}" Margin="12,4,0,0" VerticalAlignment="Center"
                     Padding="8,2,8,3" CornerRadius="6" ToolTip="You are using this version of VetPOS">
-              <TextBlock Text="{Binding Source={x:Static local:HomeView.AppVersion}}"
+              <TextBlock Text="{x:Static app:App.VersionLabel}"
                          FontSize="{StaticResource FontSize.Caption}" FontWeight="SemiBold" />
             </Border>
           </StackPanel>

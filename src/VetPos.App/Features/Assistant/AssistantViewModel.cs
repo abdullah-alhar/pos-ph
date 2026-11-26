@@ -75,6 +75,80 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
     [ObservableProperty] private bool _isThinking;
     [ObservableProperty] private string? _offline;
 
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(MicrophoneLabel))] private bool _isListening;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ReadAnswerLabel))] private bool _isSpeaking;
+    [ObservableProperty] private string? _voiceStatus;
+    private CancellationTokenSource? _voice;
+
+    public string MicrophoneLabel => IsListening ? "Stop mic" : "Speak";
+    public string ReadAnswerLabel => IsSpeaking ? "Stop reading" : "Read answer";
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task Dictate()
+    {
+        if (IsListening) { StopVoice(); return; }
+        if (IsSpeaking || IsThinking) return;
+        await RunVoiceAsync(listening: true, async ct =>
+        {
+            var text = await AssistantSpeech.ListenAsync(ct);
+            ct.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                VoiceStatus = "No speech was recognised. Try again or type your question.";
+                return;
+            }
+            Input = string.IsNullOrWhiteSpace(Input) ? text : $"{Input.TrimEnd()} {text}";
+            VoiceStatus = "Check the words, then press Ask.";
+            RequestFocus();
+        });
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task ReadAnswer()
+    {
+        if (IsSpeaking) { StopVoice(); return; }
+        if (IsListening) return;
+        var reply = Messages.LastOrDefault(message => !message.FromUser && !message.IsError);
+        if (reply is null)
+        {
+            VoiceStatus = "Ask a question first, then use Read answer.";
+            return;
+        }
+        await RunVoiceAsync(listening: false, ct => AssistantSpeech.ReadAsync(reply.Text, ct));
+    }
+
+    private async Task RunVoiceAsync(bool listening, Func<CancellationToken, Task> action)
+    {
+        using var operation = new CancellationTokenSource();
+        _voice = operation;
+        IsListening = listening;
+        IsSpeaking = !listening;
+        VoiceStatus = listening ? "Listening. Say your question." : "Reading the answer…";
+        try
+        {
+            await action(operation.Token);
+            if (!listening) VoiceStatus = null;
+        }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested)
+        {
+            VoiceStatus = null;
+        }
+        catch (Exception ex)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Ui.Logger, ex, "Windows speech failed");
+            VoiceStatus = listening
+                ? "Windows could not hear you. Check the microphone and installed speech language, or type your question."
+                : "Windows could not read the answer aloud. Check your speaker and installed voice.";
+        }
+        finally
+        {
+            _voice = null;
+            IsListening = IsSpeaking = false;
+        }
+    }
+
+    public void StopVoice() => _voice?.Cancel();
+
     public IReadOnlyList<string> Suggestions => Ui.Session.IsOwner
         ?
         [
@@ -104,33 +178,42 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
     /// <summary>Settings can change while the panel is open: check again (panel opened, Ask pressed).</summary>
     public async Task RefreshAsync() => Offline = await assistant.ProblemAsync();
 
-    [RelayCommand]
-    private async Task Ask(string? question)
+    [RelayCommand(IncludeCancelCommand = true)]
+    private async Task Ask(string? question, CancellationToken ct)
     {
         question = (question ?? Input).Trim();
-        if (question.Length == 0 || IsThinking) return;
-        // Always check again: the owner may have just saved the key in Settings.
-        Offline = await assistant.ProblemAsync();
-        if (Offline is not null)
-        {
-            Messages.Add(new ChatMessage(true, question));
-            Messages.Add(new ChatMessage(false, Offline + (Ui.Session.IsOwner ? "" : " Ask the owner."), IsError: true,
-                Links: Ui.Session.IsOwner ? [new AiLink("Open AI settings", "settings:ai")] : null));
-            OnPropertyChanged(nameof(IsEmpty));
-            Input = "";
-            return;
-        }
-        var history = Messages.Where(m => !m.IsError).Select(m => new ChatTurn(m.FromUser, m.Text)).ToList();
-        Messages.Add(new ChatMessage(true, question));
-        OnPropertyChanged(nameof(IsEmpty));
-        Input = "";
+        if (question.Length == 0 || IsThinking || IsListening) return;
+        StopVoice();
+        VoiceStatus = null;
+        var actor = Ui.Session.Actor;
+        ChatMessage? pending = null;
         IsThinking = true;
         try
         {
-            var answer = await Task.Run(() => assistant.AskAsync(question, history, Ui.Session.Actor));
+            Offline = await assistant.ProblemAsync(ct);
+            ct.ThrowIfCancellationRequested();
+            var history = Messages.Where(m => !m.IsError).Select(m => new ChatTurn(m.FromUser, m.Text)).ToList();
+            pending = new ChatMessage(true, question);
+            Messages.Add(pending);
+            OnPropertyChanged(nameof(IsEmpty));
+            Input = "";
+            if (Offline is not null)
+            {
+                Messages.Add(new ChatMessage(false, Offline + (Ui.Session.IsOwner ? "" : " Ask the owner."), IsError: true,
+                    Links: Ui.Session.IsOwner ? [new AiLink("Open AI settings", "settings:ai")] : null));
+                return;
+            }
+
+            var answer = await Task.Run(() => assistant.AskAsync(question, history, actor, ct), ct);
+            ct.ThrowIfCancellationRequested();
             var tools = answer.Tools.Count == 0 ? null : "Looked at: " + string.Join(", ", answer.Tools.Select(t => t.Name.Replace('_', ' ')).Distinct());
             var cards = answer.Actions is { Count: > 0 } list ? list.Select(a => new ActionCard(a)).ToList() : null;
             Messages.Add(new ChatMessage(false, Plain(answer.Text), tools, Links: answer.Links, Actions: cards));
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (pending is not null && Messages.Remove(pending) && Input.Length == 0) Input = question;
+            OnPropertyChanged(nameof(IsEmpty));
         }
         catch (AiUnavailableException ex)
         {
@@ -150,6 +233,7 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
         finally
         {
             IsThinking = false;
+            OnPropertyChanged(nameof(IsEmpty));
         }
     }
 
@@ -161,6 +245,10 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
     [RelayCommand]
     private void Clear()
     {
+        AskCancelCommand.Execute(null);
+        StopVoice();
+        VoiceStatus = null;
+        Input = "";
         Messages.Clear();
         OnPropertyChanged(nameof(IsEmpty));
     }

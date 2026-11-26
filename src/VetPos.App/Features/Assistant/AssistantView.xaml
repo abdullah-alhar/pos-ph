@@ -13,7 +13,7 @@
           <Path Style="{StaticResource AiSpark}" Width="24" Height="24" Margin="0,0,10,0" />
           <TextBlock Text="AI Assistant" Style="{StaticResource Text.PageTitle}" />
         </StackPanel>
-        <TextBlock Text="Ask about sales, stock and profit. It answers only from your shop's data and never changes anything."
+        <TextBlock Text="Ask about sales, stock and profit. Review any suggested changes before confirming."
                    Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" TextWrapping="Wrap" />
       </StackPanel>
       <Button Style="{StaticResource Button.Subtle}" Content="New chat" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding ClearCommand}" />
@@ -34,11 +34,21 @@
 
     <!-- Input -->
     <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Padding="8" Margin="0,12,0,0">
-      <DockPanel>
-        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Ask" ds:Ds.KeyHint="Enter" Command="{Binding AskCommand}" VerticalAlignment="Bottom" />
-        <TextBox x:Name="InputBox" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Margin="0,0,8,0"
-                 ds:Ds.Placeholder="Ask in English, Sinhala or Tamil…" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120" />
-      </DockPanel>
+      <StackPanel>
+        <WrapPanel Margin="0,0,0,4">
+          <Button Style="{StaticResource Button.Small}" Content="{Binding MicrophoneLabel}" ds:Ds.Icon="&#xE720;"
+                  Command="{Binding DictateCommand}" Margin="0,0,6,0" />
+          <Button Style="{StaticResource Button.Small}" Content="{Binding ReadAnswerLabel}"
+                  Command="{Binding ReadAnswerCommand}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding VoiceStatus}" TextWrapping="Wrap" Style="{StaticResource Text.Caption}"
+                   Margin="4,0,4,6" Visibility="{Binding VoiceStatus, Converter={StaticResource NullToCollapsed}}" />
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Content="Ask" ds:Ds.KeyHint="Enter" Command="{Binding AskCommand}" VerticalAlignment="Bottom" />
+          <TextBox x:Name="InputBox" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Margin="0,0,8,0"
+                   ds:Ds.Placeholder="Ask in English, Sinhala or Tamil…" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120" />
+        </DockPanel>
+      </StackPanel>
     </Border>
 
     <Grid>
@@ -151,7 +161,8 @@
           </ItemsControl>
           <StackPanel Orientation="Horizontal" Margin="4,0,0,12" Visibility="{Binding IsThinking, Converter={StaticResource BoolToVisibility}}">
             <ProgressBar IsIndeterminate="True" Width="80" Height="4" VerticalAlignment="Center" />
-            <TextBlock Text="Looking at your data…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" />
+            <TextBlock Text="Looking at your data…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" VerticalAlignment="Center" />
+            <Button Style="{StaticResource Button.Small}" Content="Stop" Command="{Binding AskCancelCommand}" Margin="8,0,0,0" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

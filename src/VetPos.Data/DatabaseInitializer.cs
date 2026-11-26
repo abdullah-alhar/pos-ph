@@ -10,7 +10,8 @@ namespace VetPos.Data;
 public sealed record DatabaseStartResult(bool Created, IReadOnlyList<string> AppliedMigrations, bool SampleDataAdded);
 
 /// <summary>Thrown when the database file is damaged; the app offers to restore a backup.</summary>
-public sealed class DatabaseDamagedException(string detail) : Exception($"The database file is damaged: {detail}");
+public sealed class DatabaseDamagedException(string detail, Exception? inner = null)
+    : Exception($"The database file is damaged: {detail}", inner);
 
 /// <summary>
 /// Opens the database at start-up: makes the folders, switches SQLite to WAL (safe against
@@ -23,6 +24,9 @@ public sealed class DatabaseInitializer(
     TimeProvider clock,
     ILogger<DatabaseInitializer> logger)
 {
+    private const int SqliteCorrupt = 11;
+    private const int SqliteNotADatabase = 26;
+
     public async Task<DatabaseStartResult> InitializeAsync(bool addSampleData, CancellationToken ct = default)
     {
         paths.EnsureCreated();
@@ -30,16 +34,24 @@ public sealed class DatabaseInitializer(
 
         await using var db = await dbFactory.CreateDbContextAsync(ct);
         var connection = (SqliteConnection)db.Database.GetDbConnection();
-        await connection.OpenAsync(ct);
-
-        if (!created)
+        try
         {
-            var check = await ScalarAsync(connection, "PRAGMA quick_check;", ct);
-            if (!string.Equals(check, "ok", StringComparison.OrdinalIgnoreCase))
+            await connection.OpenAsync(ct);
+            if (!created)
             {
-                logger.LogCritical("Database quick_check failed: {Result}", check);
-                throw new DatabaseDamagedException(check ?? "no answer");
+                var check = await ScalarAsync(connection, "PRAGMA quick_check;", ct);
+                if (!string.Equals(check, "ok", StringComparison.OrdinalIgnoreCase))
+                    throw new DatabaseDamagedException(check ?? "no answer");
             }
+        }
+        catch (Exception ex) when (!created && (ex is DatabaseDamagedException
+            or SqliteException { SqliteErrorCode: SqliteCorrupt or SqliteNotADatabase }))
+        {
+            // Discard this connection when the context closes so Windows releases the file.
+            SqliteConnection.ClearPool(connection);
+            logger.LogCritical(ex, "Database quick_check failed");
+            if (ex is DatabaseDamagedException) throw;
+            throw new DatabaseDamagedException(ex.Message, ex);
         }
 
         // WAL is stored in the file, so this only really changes something the first time.

@@ -5,7 +5,7 @@ medicine and accessories. Native Windows app (.NET 10 LTS, WPF, SQLite), keyboar
 details (generic name, strength, form, species), a receipt designer, reports with PDF/Excel export, backups and an AI
 assistant that reads the shop's own data.
 
-**Version 1.0.0-beta.3** · [Changelog](CHANGELOG.md) · [Quick start for the shop](docs/QUICK-START.md) · [Feedback form](docs/FEEDBACK.md) · Plan: [docs/PLAN.md](docs/PLAN.md) · Design: [docs/DESIGN.md](docs/DESIGN.md)
+[Changelog](CHANGELOG.md) · [Quick start for the shop](docs/QUICK-START.md) · [Feedback form](docs/FEEDBACK.md) · Plan: [docs/PLAN.md](docs/PLAN.md) · Design: [docs/DESIGN.md](docs/DESIGN.md) · [MIT license](LICENSE)
 
 > **Beta note:** VetPOS is not code-signed yet. On PCs with Windows *Smart App Control* switched on,
 > Windows blocks it. Install on PCs where it is off (Windows Security → App & browser control).
@@ -109,8 +109,12 @@ instead of GitHub (for shops without internet). No .NET install is needed, ever:
 
 **Publishing a new version** (always a higher number than the last one):
 
-* GitHub: `git tag v1.0.0-beta.2 && git push origin v1.0.0-beta.2`, or Actions → *VetPOS release* → Run workflow.
-  The workflow tests, builds, packs and creates the release.
+* GitHub: after the workflow is on `main`, push a new version tag from the commit you want to ship,
+  for example `git tag v1.0.1 && git push origin v1.0.1`. GitHub Actions runs the tests on Windows
+  and publishes the installer, portable ZIP, and full Velopack update package with its feed.
+  A tag like `v1.0.1-beta.1` publishes a GitHub prerelease that installed copies skip by default.
+* Test installer: use Actions → *VetPOS release* → Run workflow, enter a version such as `1.0.1-beta.1`,
+  then download the artifact from the run summary.
 * From this Mac: `GITHUB_TOKEN=… ./build/publish-github.sh 1.0.0-beta.2`.
 * Without GitHub: `./build/release.sh 1.0.0-beta.2` and copy `publish/releases` to the shared folder.
 
@@ -120,11 +124,18 @@ Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```
 dotnet build VetPos.slnx
-dotnet test                                   # 185 tests: money, discounts, payments, stock, checkout, search, medicine, reports, backups, AI (answers, changes, errors), receipts, barcodes
+dotnet test --solution VetPos.slnx
 dotnet run --project src/VetPos.App           # Windows only; Debug adds sample products to a new database
 ```
 
 The app builds on macOS/Linux too (for CI and tests) but only runs on Windows.
+
+**Check Windows startup from your Mac**
+
+Open a pull request against `main`, then open its **VetPOS release** check in GitHub Actions.
+The Windows runner opens VetPOS with demo data and uploads screenshots of setup, sign-in, and the
+main screens in **Windows-startup-preview**, including `today-product.png`. Use Windows for
+hands-on checks with a microphone, printer, or an existing shop installation.
 
 **Installer + update packages**
 
@@ -136,8 +147,7 @@ powershell -File build\release.ps1 -Version 1.0.0-beta.3   # Windows
 Output in `publish/releases`: `VetPOS.App-win-Setup.exe` (give this to the shop),
 `VetPOS.App-win-Portable.zip`, and the `*.nupkg` / `releases.win.json` files to upload to the update
 location. Releases are not code-signed yet (Windows SmartScreen asks once: *More info → Run anyway*;
-Smart App Control blocks it). To sign: `SIGN_TEMPLATE='jsign … {{file}}' ./build/release.sh …`, or the
-`JSIGN_OPTIONS` secret for the GitHub workflow.
+Smart App Control blocks it). To sign a local build, use `SIGN_TEMPLATE='jsign … {{file}}' ./build/release.sh …`.
 
 **Database changes**
 

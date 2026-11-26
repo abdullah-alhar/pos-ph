@@ -11,6 +11,6 @@ public static class Program
         VelopackApp.Build().Run();
         var app = new App();
         app.InitializeComponent();
-        app.Run();
+        Environment.ExitCode = app.Run();
     }
 }

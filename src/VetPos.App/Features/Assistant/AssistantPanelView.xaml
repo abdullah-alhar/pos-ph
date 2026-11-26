@@ -21,22 +21,32 @@
     <!-- Send box -->
     <Border DockPanel.Dock="Bottom" Margin="16,8,16,16" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Brush.LineStrong}"
             Background="{DynamicResource Brush.Surface}" Padding="4">
-      <DockPanel>
-        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Width="40" MinHeight="40" Padding="0" VerticalAlignment="Bottom"
-                Command="{Binding AskCommand}" ToolTip="Send (Enter)" Focusable="False">
-          <TextBlock Text="&#xE724;" FontFamily="{StaticResource Font.Icons}" FontSize="15" />
-        </Button>
-        <TextBox x:Name="InputBox" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="Transparent"
-                 ds:Ds.Placeholder="Ask about sales, stock or profit…" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" MinHeight="40"
-                 VerticalContentAlignment="Center" Margin="0,0,4,0" />
-      </DockPanel>
+      <StackPanel>
+        <WrapPanel Margin="0,0,0,4">
+          <Button Style="{StaticResource Button.Small}" Content="{Binding MicrophoneLabel}" ds:Ds.Icon="&#xE720;"
+                  Command="{Binding DictateCommand}" Margin="0,0,6,0" />
+          <Button Style="{StaticResource Button.Small}" Content="{Binding ReadAnswerLabel}"
+                  Command="{Binding ReadAnswerCommand}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding VoiceStatus}" TextWrapping="Wrap" Style="{StaticResource Text.Caption}"
+                   Margin="4,0,4,6" Visibility="{Binding VoiceStatus, Converter={StaticResource NullToCollapsed}}" />
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Style="{StaticResource Button.Primary}" Width="40" MinHeight="40" Padding="0" VerticalAlignment="Bottom"
+                  Command="{Binding AskCommand}" ToolTip="Send (Enter)" Focusable="False">
+            <TextBlock Text="&#xE724;" FontFamily="{StaticResource Font.Icons}" FontSize="15" />
+          </Button>
+          <TextBox x:Name="InputBox" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="Transparent"
+                   ds:Ds.Placeholder="Ask about sales, stock or profit…" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" MinHeight="40"
+                   VerticalContentAlignment="Center" Margin="0,0,4,0" />
+        </DockPanel>
+      </StackPanel>
     </Border>
 
     <Grid>
       <!-- Empty: what to ask -->
       <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
         <StackPanel Margin="16,8,16,8">
-          <TextBlock Text="Answers come only from your shop's data. The AI never changes anything." Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" />
+          <TextBlock Text="Ask about the shop. Review any suggested changes before confirming." Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" />
           <TextBlock Text="Try" Style="{StaticResource Text.Overline}" Margin="0,18,0,8" />
           <ItemsControl ItemsSource="{Binding Suggestions}">
             <ItemsControl.ItemTemplate>
@@ -142,7 +152,8 @@
           </ItemsControl>
           <StackPanel Orientation="Horizontal" Margin="2,0,0,10" Visibility="{Binding IsThinking, Converter={StaticResource BoolToVisibility}}">
             <ProgressBar IsIndeterminate="True" Width="60" Height="3" VerticalAlignment="Center" />
-            <TextBlock Text="Looking at your data…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" />
+            <TextBlock Text="Looking at your data…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" VerticalAlignment="Center" />
+            <Button Style="{StaticResource Button.Small}" Content="Stop" Command="{Binding AskCancelCommand}" Margin="8,0,0,0" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>
