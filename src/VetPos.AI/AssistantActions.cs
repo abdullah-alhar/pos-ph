@@ -17,6 +17,11 @@ public abstract class AiAction(string title, IReadOnlyList<string> lines)
     public IReadOnlyList<string> Lines { get; } = lines;
 }
 
+public sealed class CreateCategoryAction(string name) : AiAction("Create product category", [name])
+{
+    public string Name { get; } = name;
+}
+
 public sealed class CreateProductsAction(IReadOnlyList<ProductProposal> products)
     : AiAction(
         $"Create {products.Count} product{(products.Count == 1 ? "" : "s")}",
@@ -47,7 +52,7 @@ public sealed record StockLine(int ProductId, string Name, int Qty, decimal? Cos
 public sealed class AddStockAction(IReadOnlyList<StockLine> items, string? invoiceNo)
     : AiAction(
         $"Add stock: {items.Sum(i => i.Qty)} unit{(items.Sum(i => i.Qty) == 1 ? "" : "s")} of {items.Count} product{(items.Count == 1 ? "" : "s")}",
-        items.Select(i => $"{i.Name} · +{i.Qty}" + (i.CostPrice is { } c ? $" · cost {Money.Format(c, true)}" : "") + (i.SellingPrice is { } sp ? $" · sell {Money.Format(sp, true)}" : "")).ToList())
+        (invoiceNo is null ? Enumerable.Empty<string>() : [$"Invoice: {invoiceNo}"]).Concat(items.Select(i => $"{i.Name} · +{i.Qty}" + (i.CostPrice is { } c ? $" · cost {Money.Format(c, true)}" : "") + (i.SellingPrice is { } sp ? $" · selling price for all stock {Money.Format(sp, true)}" : ""))).ToList())
 {
     public IReadOnlyList<StockLine> Items { get; } = items;
     public string? InvoiceNo { get; } = invoiceNo;
@@ -57,6 +62,13 @@ public sealed class AddStockAction(IReadOnlyList<StockLine> items, string? invoi
 public sealed class AssistantActions(CatalogService catalog, StockEntryService stock, ProductAssistant products, ShopClock clock)
 {
     // ───────── Building (from the AI's tool call) ─────────
+
+    public static CreateCategoryAction BuildCategory(JsonObject args)
+    {
+        var name = Str(args, "name");
+        if (name is null || name.Length > 60) throw new PosException("give a category name between 1 and 60 characters");
+        return new CreateCategoryAction(name);
+    }
 
     public static CreateProductsAction BuildCreate(JsonObject args)
     {
@@ -125,6 +137,9 @@ public sealed class AssistantActions(CatalogService catalog, StockEntryService s
         actor.RequireOwner("change products or stock with the AI");
         switch (action)
         {
+            case CreateCategoryAction c:
+                await catalog.SaveCategoryAsync(null, c.Name, actor, ct);
+                return $"Category {c.Name} created.";
             case CreateProductsAction c:
             {
                 var added = await products.CreateAsync(c.Products, actor, ct);
@@ -176,5 +191,5 @@ public sealed class AssistantActions(CatalogService catalog, StockEntryService s
             ? Money.Round(d) : null;
 
     private static int? Int(JsonObject o, string k) =>
-        o[k] is JsonValue v && (v.TryGetValue<int>(out var i) || (v.TryGetValue<decimal>(out var d) && d == Math.Floor(d) && (i = (int)d) == d)) ? i : null;
+        o[k] is JsonValue v && (v.TryGetValue<int>(out var i) || (v.TryGetValue<decimal>(out var d) && d is >= int.MinValue and <= int.MaxValue && d == Math.Floor(d) && (i = (int)d) == d)) ? i : null;
 }

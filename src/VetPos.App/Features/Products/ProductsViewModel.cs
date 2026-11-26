@@ -108,21 +108,44 @@ public sealed partial class ProductsViewModel : PageViewModel
 
     async partial void OnFilterChanged(ProductFilter value) => await ReloadAsync();
 
-    private Task ReloadAsync() => LoadAsync(async () =>
+    private int _reloadVersion;
+
+    private async Task ReloadAsync()
     {
-        LowCount = (await _catalog.LowStockAsync()).Count;
-        Rows.Clear();
+        var version = ++_reloadVersion;
+        var filter = Filter;
+        var search = Search;
+        IsBusy = true;
+        LoadError = null;
+        try
         {
-            var rows = Filter switch
+            var result = await Task.Run(async () =>
             {
-                ProductFilter.LowStock => await _catalog.LowStockAsync(),
-                ProductFilter.Inactive => (await _catalog.SearchAsync(Search, includeInactive: true, limit: 1000)).Where(r => !r.IsActive).ToList(),
-                _ => await _catalog.SearchAsync(Search, limit: 1000),
-            };
-            foreach (var r in rows.Where(r => Filter != ProductFilter.LowStock || Search.Length == 0 || r.Name.Contains(Search, StringComparison.OrdinalIgnoreCase))) Rows.Add(r);
+                if (filter == ProductFilter.LowStock)
+                {
+                    var low = await _catalog.LowStockAsync();
+                    return (Count: low.Count, Rows: low.Where(r => r.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList());
+                }
+                var count = await _catalog.CountLowStockAsync();
+                var found = await _catalog.SearchAsync(search, includeInactive: filter == ProductFilter.Inactive, limit: 1000);
+                return (Count: count, Rows: found.Where(r => filter != ProductFilter.Inactive || !r.IsActive).ToList());
+            });
+            if (version != _reloadVersion) return;
+            LowCount = result.Count;
+            Rows.Clear();
+            foreach (var row in result.Rows) Rows.Add(row);
+            OnPropertyChanged(nameof(IsEmpty));
         }
-        OnPropertyChanged(nameof(IsEmpty));
-    });
+        catch (Exception ex)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Ui.Logger, ex, "Products could not be loaded");
+            if (version == _reloadVersion) LoadError = "Products could not be loaded. Try refreshing the list.";
+        }
+        finally
+        {
+            if (version == _reloadVersion) IsBusy = false;
+        }
+    }
 
     async partial void OnSelectedChanged(ProductRow? value)
     {

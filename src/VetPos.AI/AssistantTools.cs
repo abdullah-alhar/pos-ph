@@ -14,6 +14,21 @@ namespace VetPos.AI;
 /// </summary>
 public sealed class AssistantTools(ReportService reports, CatalogService catalog, SaleService sales, ShopClock clock, AssistantActions actions)
 {
+    private static readonly (string Target, string Label, bool OwnerOnly)[] Screens =
+    [
+        ("home", "Open overview", false), ("billing", "Open billing", false),
+        ("products", "Open products", false), ("products:low", "Open low stock", false),
+        ("stock", "Open stock entry", false), ("labels", "Open labels", false),
+        ("reports:today", "Open today's report", false), ("reports:sales", "Open sales report", false),
+        ("reports:expiry", "Open stock and expiry report", false), ("reports:bills", "Open bills", false),
+        ("reports:profit", "Open profit report", true), ("receipt", "Open bill editor", true),
+        ("settings:ai", "Open AI settings", true),
+    ];
+
+    internal static AiLink? ScreenLink(string? target, Actor actor) =>
+        Screens.Where(s => s.Target == target && (!s.OwnerOnly || actor.IsOwner))
+            .Select(s => new AiLink(s.Label, s.Target)).FirstOrDefault();
+
     private static JsonObject Fn(string name, string description, JsonObject properties, params string[] required) => new()
     {
         ["type"] = "function",
@@ -41,12 +56,20 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
             Fn("get_top_products", "Best-selling products between two dates, by sales amount.",
                 new JsonObject { ["from_date"] = Date("First day"), ["to_date"] = Date("Last day"), ["limit"] = new JsonObject { ["type"] = "integer", ["description"] = "How many, 1 to 30" } },
                 "from_date", "to_date"),
+            Fn("get_expiring_stock", "List stock batches that are expired or will expire soon, with remaining quantities.",
+                new JsonObject { ["days"] = new JsonObject { ["type"] = "integer", ["description"] = "Days ahead, 1 to 90 (default 30)" } }),
+            Fn("get_categories", "List product categories and product counts.", []),
+            Fn("open_screen", "Offer a button that opens the requested VetPOS screen. The user decides whether to open it.",
+                new JsonObject { ["target"] = new JsonObject { ["type"] = "string",
+                    ["enum"] = new JsonArray(Screens.Where(s => !s.OwnerOnly || actor.IsOwner).Select(s => (JsonNode)JsonValue.Create(s.Target)).ToArray()) } }, "target"),
             Fn("get_low_stock", "Products at or below their reorder level.", []),
             Fn("search_product", "Find products by name, generic name or barcode: price and stock.",
                 new JsonObject { ["name_or_barcode"] = new JsonObject { ["type"] = "string" } }, "name_or_barcode"),
         };
         if (actor.IsOwner)
         {
+            list.Add(Fn("propose_create_category", "Prepare a new product category for the owner to confirm.",
+                new JsonObject { ["name"] = new JsonObject { ["type"] = "string" } }, "name"));
             list.Add(Fn("propose_create_products",
                 "Prepare NEW products for the owner to confirm (nothing is saved until they press Confirm). One product per pack size; put the size in the name.",
                 new JsonObject { ["products"] = new JsonObject { ["type"] = "array", ["items"] = ProductAssistant.ProductItemSchema() } }, "products"));
@@ -96,20 +119,28 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
     /// <summary>Runs one tool. Bad arguments come back as text the AI can read and correct.</summary>
     public async Task<string> RunAsync(string name, string argumentsJson, Actor actor, CancellationToken ct, ICollection<AiAction>? proposals = null)
     {
+        if (argumentsJson.Length > 64_000) return Error("arguments exceed the tool limit");
         JsonObject args;
-        try { args = JsonNode.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson) as JsonObject ?? []; }
+        try
+        {
+            if (JsonNode.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson) is not JsonObject parsed)
+                return Error("arguments must be a JSON object");
+            args = parsed;
+        }
         catch (JsonException) { return Error("arguments are not valid JSON"); }
 
         try
         {
             switch (name)
             {
-                case "propose_create_products" or "propose_update_product" or "propose_add_stock" or "propose_remove_product":
+                case "propose_create_products" or "propose_update_product" or "propose_add_stock" or "propose_remove_product" or "propose_create_category":
                 {
                     if (!actor.IsOwner) return Error("only the owner can change products or stock; tell the person to ask the owner");
                     if (proposals is null) return Error("changes are not possible here");
+                    if (proposals.Count >= 5) return Error("review the pending changes before proposing more");
                     AiAction action = name switch
                     {
+                        "propose_create_category" => AssistantActions.BuildCategory(args),
                         "propose_create_products" => AssistantActions.BuildCreate(args),
                         "propose_update_product" => await actions.BuildUpdateAsync(args, ct),
                         "propose_remove_product" => await actions.BuildRemoveAsync(args, ct),
@@ -124,6 +155,25 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
                         instruction = "Nothing is saved yet. Tell the person in one short sentence to check the card below and press Confirm.",
                     });
                 }
+                case "open_screen":
+                {
+                    var link = ScreenLink(Text(args, "target"), actor);
+                    return link is null ? Error("that screen is unavailable for this role") : Json(new { target = link.Target });
+                }
+                case "get_expiring_stock":
+                {
+                    var days = Math.Clamp(Int(args, "days") ?? 30, 1, 90);
+                    var rows = await catalog.ExpiringAsync(days, ct);
+                    return Json(new { count = rows.Count, batches = rows.Take(30).Select(r => new
+                    {
+                        product = r.ProductName, expiry = Iso(r.ExpiryDate), quantity = r.QtyOnHand, days_left = r.DaysLeft,
+                    }) });
+                }
+                case "get_categories":
+                {
+                    var rows = await catalog.CategoriesAsync(ct);
+                    return Json(new { count = rows.Count, categories = rows.Take(50).Select(r => new { name = r.Name, products = r.ProductCount }) });
+                }
                 case "get_sales_summary":
                 {
                     var (from, to) = Range(args);
@@ -133,7 +183,7 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
                         today = Iso(clock.Today), from = Iso(from), to = Iso(to), bills = s.Bills, voided_bills = s.VoidedBills, units_sold = s.Units,
                         sales = M(s.Sales), discounts = M(s.Discounts), average_bill = M(s.AverageBill),
                         by_payment = s.ByPayment.Select(p => new { method = p.Label, bills = p.Bills, amount = M(p.Amount) }),
-                        by_cashier = s.ByCashier.Select(c => new { cashier = c.Label, bills = c.Bills, amount = M(c.Amount) }),
+                        by_cashier = actor.IsOwner ? s.ByCashier.Take(30).Select(c => new { cashier = c.Label, bills = c.Bills, amount = M(c.Amount) }) : null,
                     });
                 }
                 case "get_top_products":
@@ -145,23 +195,24 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
                 }
                 case "get_low_stock":
                 {
-                    var rows = await catalog.LowStockAsync(ct);
-                    return Json(new { count = rows.Count, products = rows.Select(r => new { name = r.Name, stock = r.StockQty, reorder_level = r.ReorderLevel }) });
+                    var rows = await catalog.LowStockCountsAsync(ct);
+                    return Json(new { count = rows.Count, products = rows.Take(30).Select(r => new { name = r.Name, stock = r.StockQty, reorder_level = r.ReorderLevel }) });
                 }
                 case "search_product":
                 {
-                    var text = args["name_or_barcode"]?.GetValue<string>()?.Trim() ?? "";
-                    if (text.Length == 0) return Error("name_or_barcode is empty");
+                    var text = Text(args, "name_or_barcode")?.Trim() ?? "";
+                    if (text.Length is 0 or > 200) return Error("name_or_barcode must be between 1 and 200 characters");
                     var rows = await catalog.SearchAsync(text, limit: 8, ct: ct);
                     var result = new List<object>();
                     foreach (var r in rows)
                     {
                         var item = await sales.GetBillingItemAsync(r.Id, ct);
+                        var prices = item?.PriceOptions;
                         result.Add(new
                         {
-                            name = r.Name, barcode = r.Barcode, category = r.Category, price = M(item?.DefaultPrice ?? r.SellingPrice),
+                            name = r.Name, barcode = r.Barcode, category = r.Category, price = M(prices is { Count: > 0 } ? prices[0].Price : r.SellingPrice),
                             stock = r.StockQty, generic_name = r.GenericName,
-                            prices_on_hand = item?.Batches.GroupBy(b => b.SellingPrice).Select(g => new { price = M(g.Key), qty = g.Sum(b => b.QtyOnHand) }),
+                            prices_on_hand = prices?.Take(15).Select(p => new { price = M(p.Price), qty = p.QtyAvailable }),
                         });
                     }
                     return Json(new { found = result.Count, products = result });
@@ -182,7 +233,7 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
                     return Error($"there is no tool called {name}");
             }
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException or PosException)
         {
             return Error(ex.Message);
         }
@@ -199,11 +250,14 @@ public sealed class AssistantTools(ReportService reports, CatalogService catalog
 
     private static DateOnly ParseDate(JsonObject args, string key)
     {
-        var text = args[key]?.GetValue<string>();
+        var text = Text(args, key);
         return DateOnly.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
             ? d
             : throw new ArgumentException($"{key} must be a date like 2026-11-13");
     }
+
+    private static string? Text(JsonObject args, string key) =>
+        args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
 
     private static int? Int(JsonObject args, string key) =>
         args[key] is JsonValue v && (v.TryGetValue<int>(out var i) || (v.TryGetValue<string>(out var s) && int.TryParse(s, CultureInfo.InvariantCulture, out i))) ? i : null;

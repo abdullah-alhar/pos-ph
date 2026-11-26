@@ -11,32 +11,22 @@
     </Grid.ColumnDefinitions>
 
     <local:BrandPanel Logo="{Binding ShopLogo}" Title="{Binding ShopName}"
-                      Subtitle="{Binding Source={x:Static app:App.VersionLabel}, StringFormat='Pet food, farm feed, animal medicine and accessories · {0}'}" />
+                      Subtitle="{Binding Source={x:Static app:App.VersionLabel}, StringFormat='VetPOS {0}'}" />
 
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">
-                <!-- Update available banner (pre-login) — hidden per session once dismissed -->
-        <Border CornerRadius="10" Background="{DynamicResource Brush.AccentSoft}"
-                BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1"
-                Padding="14,10" Margin="0,0,0,20"
-                Visibility="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="&#xE8CF;" FontFamily="{StaticResource Font.Icons}" FontSize="17"
-                         Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap">
-                <Run Text="New version released — VetPOS" Foreground="{DynamicResource Brush.AccentText}" FontWeight="Medium" />
-                <Run Text="{Binding Updates.ReadyVersion, Mode=OneWay}" Foreground="{DynamicResource Brush.AccentText}" FontWeight="SemiBold" />
-                <Run Text="is ready. Sign in to update." Foreground="{DynamicResource Brush.AccentText}" />
-              </TextBlock>
-            </StackPanel>
-          </Grid>
+        <TextBlock Text="Sign in" Style="{StaticResource Text.PageTitle}" HorizontalAlignment="Center" />
+        <Border Background="{DynamicResource Brush.Background}" BorderBrush="{DynamicResource Brush.Line}"
+                BorderThickness="1" CornerRadius="{StaticResource Radius.Card}" Padding="12" Margin="0,12,0,0" Width="420"
+                Visibility="{Binding Updates.ShowProgress, Converter={StaticResource BoolToVisibility}}">
+          <ContentControl Content="{Binding Updates}" ContentTemplate="{StaticResource ActiveUpdateProgress}" Focusable="False" />
         </Border>
-        <TextBlock Text="{Binding Greeting}" Style="{StaticResource Text.Secondary}" FontSize="16" HorizontalAlignment="Center" />
+        <Button Style="{StaticResource Button.Subtle}" Content="{Binding Updates.BackgroundProgressLabel}" ToolTip="{Binding Updates.Status}"
+                Command="{Binding Updates.ShowUpdateProgressCommand}" HorizontalAlignment="Center" Margin="0,8,0,0"
+                Visibility="{Binding Updates.ShowBackgroundProgress, Converter={StaticResource BoolToVisibility}}" />
+        <TextBlock Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,8,0,0"
+                   Text="{Binding Updates.ReadyVersion, StringFormat='VetPOS {0} is ready to install.'}"
+                   Visibility="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}" />
 
         <!-- People: click your face -->
         <ListBox x:Name="People" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" BorderThickness="0" Background="Transparent"
@@ -50,8 +40,8 @@
               <Setter Property="Template">
                 <Setter.Value>
                   <ControlTemplate TargetType="ListBoxItem">
-                    <StackPanel x:Name="Root" Width="112" Margin="4,0" Opacity="0.55">
-                      <Grid Width="80" Height="80" HorizontalAlignment="Center">
+                    <StackPanel x:Name="Root" Width="100" Margin="4,0" Opacity="0.75">
+                      <Grid Width="62" Height="62" HorizontalAlignment="Center">
                         <Ellipse x:Name="Ring" Stroke="{DynamicResource Brush.Accent}" StrokeThickness="3" Visibility="Hidden" />
                         <Ellipse Margin="6" Fill="{DynamicResource Brush.Brand}" />
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -86,7 +76,7 @@
           <TextBox x:Name="UserBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" FontSize="17" MinHeight="48" />
         </StackPanel>
 
-        <local:PinEntry x:Name="Pin" Margin="0,30,0,0" Hint="{Binding PinHint}" Error="{Binding Error}" Submitted="OnSubmitted" />
+        <local:PinEntry x:Name="Pin" Margin="0,22,0,0" Hint="{Binding PinHint}" Error="{Binding Error}" Submitted="OnSubmitted" />
 
         <Button Style="{StaticResource Button.Subtle}" HorizontalAlignment="Center" Margin="0,18,0,0" Command="{Binding ToggleTypeUsernameCommand}"
                 Visibility="{Binding Users.Count, Converter={StaticResource PositiveToVisible}}">

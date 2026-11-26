@@ -18,13 +18,8 @@ using VetPos.Data.Services;
 
 namespace VetPos.App.Shell;
 
-/// <summary>
-/// One page in the menu. Each page has its own colour, like apps on a phone, so staff can find it by
-/// colour and picture even without reading the word.
-/// </summary>
-public sealed record NavItem(string Title, string Icon, string Shortcut, Type PageType, string Color, bool OwnerOnly = false)
+public sealed record NavItem(string Title, string Icon, string Shortcut, Type PageType, bool OwnerOnly = false)
 {
-    /// <summary>The word under the icon in the slim rail.</summary>
     public string ShortTitle => Title switch
     {
         "Bill editor" => "Receipt",
@@ -33,15 +28,7 @@ public sealed record NavItem(string Title, string Icon, string Shortcut, Type Pa
         _ => Title,
     };
 
-    public System.Windows.Media.Brush Tint { get; } = Freeze(Color, 1);
-    public System.Windows.Media.Brush TintSoft { get; } = Freeze(Color, 0.13);
 
-    private static System.Windows.Media.SolidColorBrush Freeze(string hex, double opacity)
-    {
-        var b = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex)) { Opacity = opacity };
-        b.Freeze();
-        return b;
-    }
 }
 
 public sealed record PaletteCommand(string Title, string Section, string? Shortcut, Func<Task> Run);
@@ -57,14 +44,20 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly List<PaletteCommand> _commands = [];
 
     private readonly NotificationService _notifications;
+    private readonly LogoService _logo;
+    private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromMinutes(3) };
+    private bool _refreshingNotices;
+    private bool _ended;
 
     public ShellViewModel(IServiceProvider services, ThemeManager theme, SettingsService settings, Ui ui, Session session, LogoService logo, NotificationService notifications, UpdateService updates)
     {
         Updates = updates;
-        ui.AskAiRequested += async (_, prefill) => await OpenAssistantAsync(prefill);
+        ui.AskAiRequested += OnAskAiRequested;
         _notifications = notifications;
         ShopLogo = logo.Load();
-        logo.Changed += (_, _) => ShopLogo = logo.Load();
+        _logo = logo;
+        logo.Changed += OnLogoChanged;
+        _noticeTimer.Tick += OnNoticeTimer;
         _services = services;
         _theme = theme;
         _settings = settings;
@@ -72,15 +65,15 @@ public sealed partial class ShellViewModel : ObservableObject
         Session = session;
         var all = new NavItem[]
         {
-            new("Home", "", "Ctrl+0", typeof(Features.Home.HomeViewModel), "#0F8B8D"),
-            new("Billing", "", "Ctrl+1", typeof(BillingViewModel), "#16A34A"),
-            new("Stock in", "", "Ctrl+2", typeof(StockEntryViewModel), "#2563EB"),
-            new("Products", "\uE719", "Ctrl+3", typeof(ProductsViewModel), "#EA7C0B"),
-            new("Labels", "\uE8EC", "Ctrl+8", typeof(Features.Labels.LabelsViewModel), "#7C3AED"),
-            new("Reports", "", "Ctrl+4", typeof(ReportsViewModel), "#DB2777"),
-            new("Bill editor", "", "Ctrl+5", typeof(BillEditorViewModel), "#0891B2", OwnerOnly: true),
-            new("Settings", "", "Ctrl+6", typeof(SettingsViewModel), "#475569", OwnerOnly: true),
-            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel), "#0F8B8D"),
+            new("Home", "", "Ctrl+0", typeof(Features.Home.HomeViewModel)),
+            new("Billing", "", "Ctrl+1", typeof(BillingViewModel)),
+            new("Stock in", "", "Ctrl+2", typeof(StockEntryViewModel)),
+            new("Products", "\uE719", "Ctrl+3", typeof(ProductsViewModel)),
+            new("Labels", "\uE8EC", "Ctrl+8", typeof(Features.Labels.LabelsViewModel)),
+            new("Reports", "", "Ctrl+4", typeof(ReportsViewModel)),
+            new("Bill editor", "", "Ctrl+5", typeof(BillEditorViewModel), OwnerOnly: true),
+            new("Settings", "", "Ctrl+6", typeof(SettingsViewModel), OwnerOnly: true),
+            new("AI Assistant", "", "Ctrl+7", typeof(AssistantViewModel)),
         };
         Items = new ObservableCollection<NavItem>(all.Where(i => !i.OwnerOnly || session.IsOwner));
         BuildCommands();
@@ -109,7 +102,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 // A change confirmed in the AI chat: reload the screen that is open so it shows at once.
                 a.ChangesSaved += async (_, _) =>
                 {
-                    if (CurrentPage is PageViewModel p and not AssistantViewModel) await _ui.Run(p.OnShownAsync);
+                    if (!_ended && CurrentPage is PageViewModel p and not AssistantViewModel) await _ui.Run(p.OnShownAsync);
                 };
                 _linksHooked = true;
             }
@@ -119,17 +112,45 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private bool _linksHooked;
 
+    [ObservableProperty] private AssistantViewModel? _drawerAssistant;
+
+    private async void OnAskAiRequested(object? sender, string? prefill) => await OpenAssistantAsync(prefill);
+
+    private void OnLogoChanged(object? sender, EventArgs e) => ShopLogo = _logo.Load();
+
+    private async void OnNoticeTimer(object? sender, EventArgs e) => await RefreshNoticesAsync();
+
+    public void EndSession()
+    {
+        _ended = true;
+        _noticeTimer.Stop();
+        _ui.AskAiRequested -= OnAskAiRequested;
+        _logo.Changed -= OnLogoChanged;
+        if (_pages.TryGetValue(typeof(AssistantViewModel), out var page) && page is AssistantViewModel assistant)
+            assistant.ClearCommand.Execute(null);
+    }
+
     /// <summary>The floating AI button shows on every page except billing (it is in the scan bar there), the AI page, and the bill/receipt editor (which has its own inline Design with AI panel).</summary>
     public bool ShowAiButton => !IsAssistantOpen && CurrentPage is not BillingViewModel and not AssistantViewModel and not BillEditorViewModel;
 
     partial void OnCurrentPageChanged(object? value) => OnPropertyChanged(nameof(ShowAiButton));
-    partial void OnIsAssistantOpenChanged(bool value) => OnPropertyChanged(nameof(ShowAiButton));
+    partial void OnIsAssistantOpenChanged(bool value)
+    {
+        if (value) DrawerAssistant ??= Assistant;
+        OnPropertyChanged(nameof(ShowAiButton));
+    }
 
     /// <summary>Opens a screen named by the AI ("products:low", "reports:profit" …).</summary>
     public void OpenTarget(string target)
     {
         switch (target)
         {
+            case "billing": Go<BillingViewModel>(); break;
+            case "home": Go<HomeViewModel>(); break;
+            case "labels": Go<Features.Labels.LabelsViewModel>(); break;
+            case "receipt" when Session.IsOwner: IsAssistantOpen = false; Go<BillEditorViewModel>(); break;
+            case "reports:bills": Go<ReportsViewModel>(); Page<ReportsViewModel>().Section = ReportSection.Bills; break;
+            case "reports:expiry": Go<ReportsViewModel>(); Page<ReportsViewModel>().Section = ReportSection.LowStockExpiry; break;
             case "products": Go<ProductsViewModel>(); Page<ProductsViewModel>().Filter = ProductFilter.All; break;
             case "products:low": Go<ProductsViewModel>(); Page<ProductsViewModel>().Filter = ProductFilter.LowStock; break;
             case "stock": Go<StockEntryViewModel>(); break;
@@ -142,10 +163,13 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public async Task RefreshNoticesAsync()
     {
-        if (!Session.IsSignedIn) return;
+        if (_ended || !Session.IsSignedIn || _refreshingNotices) return;
+        _refreshingNotices = true;
+        var actor = Session.Actor;
         try
         {
-            var list = await _notifications.ListAsync(Session.Actor);
+            var list = await Task.Run(() => _notifications.ListAsync(actor));
+            if (_ended) return;
             Notices.Clear();
             foreach (var n in list) Notices.Add(n);
             NoticeCount = list.Count(n => n.Level != NoticeLevel.Info);
@@ -153,6 +177,10 @@ public sealed partial class ShellViewModel : ObservableObject
         catch (Exception ex)
         {
             Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(_ui.Logger, ex, "Could not work out the notifications");
+        }
+        finally
+        {
+            _refreshingNotices = false;
         }
     }
 
@@ -217,7 +245,17 @@ public sealed partial class ShellViewModel : ObservableObject
     public UpdateService Updates { get; }
 
     [RelayCommand]
-    private Task RestartToUpdate() => _ui.Run(() => Updates.RestartNowAsync(Session.Actor));
+    private Task RestartToUpdate() => _ui.Run(async () =>
+    {
+        var actor = Session.Actor;
+        await SaveCurrentDraftAsync(requireSuccess: true);
+        if (Session.IsSignedIn && Session.Actor == actor) await Updates.RestartNowAsync(actor);
+    });
+
+    public Task SaveCurrentDraftAsync(bool requireSuccess = false) =>
+        _pages.TryGetValue(typeof(BillingViewModel), out var page) && page is BillingViewModel billing
+            ? billing.SaveDraftNowAsync(requireSuccess)
+            : Task.CompletedTask;
 
     [RelayCommand]
     private void UpdateLater()
@@ -228,16 +266,13 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public async Task StartAsync()
     {
-        Updates.Start();
         Collapsed = !(await _settings.GetAsync<AppearanceSettings>(AppearanceSettings.Key)).SidebarExpanded;
         // Home is Items[0]; wire card-click → navigation before selecting it
         var homeVm = Page<Features.Home.HomeViewModel>();
         homeVm.CardActivated += (_, item) => Selected = item;
         Selected = Items[0]; // lands on Home
-        await RefreshNoticesAsync();
-        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(3) };
-        timer.Tick += async (_, _) => await ErrorHandling.Quietly(RefreshNoticesAsync, "notifications");
-        timer.Start();
+        _noticeTimer.Start();
+        _ = RefreshNoticesAsync();
     }
 
     public T Page<T>() where T : class => (T)PageFor(typeof(T));
@@ -253,7 +288,7 @@ public sealed partial class ShellViewModel : ObservableObject
     partial void OnSelectedChanged(NavItem? value)
     {
         if (value is null) return;
-        var page = PageFor(value.PageType);
+        var page = value.PageType == typeof(AssistantViewModel) ? Assistant : PageFor(value.PageType);
         CurrentPage = page;
         PageReady = page is PageViewModel p ? _ui.Run(p.OnShownAsync) : Task.FromResult(true);
     }

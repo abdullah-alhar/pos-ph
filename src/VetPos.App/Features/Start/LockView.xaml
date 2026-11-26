@@ -9,7 +9,7 @@
       <ColumnDefinition Width="3*" />
     </Grid.ColumnDefinitions>
 
-    <local:BrandPanel Title="Screen locked" Subtitle="The open bill is kept exactly as it was." />
+    <local:BrandPanel Logo="{Binding DataContext.ShopLogo, RelativeSource={RelativeSource AncestorType=Window}}" Title="Screen locked" Subtitle="The open bill is kept exactly as it was." />
 
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Focusable="False">
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,32">

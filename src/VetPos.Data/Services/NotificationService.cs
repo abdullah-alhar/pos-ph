@@ -23,7 +23,7 @@ public sealed class NotificationService(IDbContextFactory<VetPosDbContext> dbFac
         var notices = new List<Notice>();
         var today = clock.Today;
 
-        var low = await catalog.LowStockAsync(ct);
+        var low = await catalog.LowStockCountsAsync(ct);
         var outOf = low.Where(l => l.StockQty <= 0).ToList();
         if (outOf.Count > 0)
             notices.Add(new("out", NoticeLevel.Danger, $"{outOf.Count} product{(outOf.Count == 1 ? "" : "s")} out of stock", Names(outOf.Select(l => l.Name)), NoticeTarget.LowStock));

@@ -31,13 +31,13 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                   IsEnabled="{Binding IsBusy, Converter={StaticResource Not}}">
-        <Button Content="Export PDF" ds:Ds.Icon="&#xE749;" Command="{Binding ExportCommand}" CommandParameter="pdf" Margin="0,0,8,0" />
-        <Button Content="Export Excel" ds:Ds.Icon="&#xE9F9;" Command="{Binding ExportCommand}" CommandParameter="xlsx" />
+        <Button Style="{StaticResource Button.Small}" Content="Export PDF" ds:Ds.Icon="&#xE749;" Command="{Binding ExportCommand}" CommandParameter="pdf" Margin="0,0,8,0" />
+        <Button Style="{StaticResource Button.Small}" Content="Export Excel" ds:Ds.Icon="&#xE9F9;" Command="{Binding ExportCommand}" CommandParameter="xlsx" />
       </StackPanel>
     </Grid>
 
     <!-- Section menu on the left (no tabs across the top) -->
-    <ScrollViewer DockPanel.Dock="Left" Width="230" Margin="0,0,24,0" VerticalScrollBarVisibility="Auto" Focusable="False">
+    <ScrollViewer DockPanel.Dock="Left" Width="188" Margin="0,0,16,0" VerticalScrollBarVisibility="Auto" Focusable="False">
       <StackPanel>
         <TextBlock Text="Money" Style="{StaticResource Text.Overline}" Margin="12,0,0,8" />
         <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE8BF;" Content="Today" IsChecked="{Binding Section, Converter={StaticResource Equals}, ConverterParameter=Today}" />
@@ -48,7 +48,7 @@
         <TextBlock Text="Stock" Style="{StaticResource Text.Overline}" Margin="12,18,0,8" />
         <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE7B8;" Content="Stock value" IsChecked="{Binding Section, Converter={StaticResource Equals}, ConverterParameter=Stock}" />
         <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE7BA;" Content="Low stock &amp; expiry" IsChecked="{Binding Section, Converter={StaticResource Equals}, ConverterParameter=LowStockExpiry}" />
-        <TextBlock Text="Control" Style="{StaticResource Text.Overline}" Margin="12,18,0,8" />
+        <TextBlock Text="Activity" Style="{StaticResource Text.Overline}" Margin="12,18,0,8" />
         <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE8EC;" Content="Discounts &amp; prices" IsChecked="{Binding Section, Converter={StaticResource Equals}, ConverterParameter=Changes}" />
         <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE81C;" Content="Activity log" IsChecked="{Binding Section, Converter={StaticResource Equals}, ConverterParameter=Activity}"
                      Visibility="{Binding IsOwner, Converter={StaticResource BoolToVisibility}}" />

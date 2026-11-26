@@ -310,9 +310,31 @@ public sealed partial class ReportsViewModel : PageViewModel
     [RelayCommand]
     private Task Refresh() => RefreshAsync();
 
-    private Task RefreshAsync() => LoadAsync(async () =>
+    private async Task RefreshAsync()
     {
         var refresh = ++_refreshVersion;
+        IsBusy = true;
+        LoadError = null;
+        try
+        {
+            await RefreshSectionAsync(refresh);
+        }
+        catch (Exception ex)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Ui.Logger, ex, "Report could not be loaded");
+            if (refresh == _refreshVersion) LoadError = "The report could not be loaded. Try refreshing.";
+        }
+        finally
+        {
+            if (refresh == _refreshVersion) IsBusy = false;
+        }
+    }
+
+    private async Task RefreshSectionAsync(int refresh)
+    {
+        var dateFrom = F;
+        var dateTo = T;
+        var search = BillSearch;
         Tiles.Clear();
         switch (Section)
         {
@@ -328,7 +350,7 @@ public sealed partial class ReportsViewModel : PageViewModel
                 var period = Period;
                 bool IsCurrent() => refresh == _refreshVersion && Section == section
                     && F == from && T == to && Period == period;
-                var s = await _reports.SummaryAsync(from, to, productId);
+                var s = await Task.Run(() => _reports.SummaryAsync(from, to, productId));
                 if (!IsCurrent()) return;
                 Summary = s;
                 string? trend = null;
@@ -343,7 +365,7 @@ public sealed partial class ReportsViewModel : PageViewModel
                         SalesPeriod.Year => (from.AddYears(-1), from.AddYears(-1).AddDays(len)),
                         _ => (from.AddDays(-(len + 1)), from.AddDays(-1)),
                     };
-                    var prev = await _reports.SummaryAsync(pf, pt, productId);
+                    var prev = await Task.Run(() => _reports.SummaryAsync(pf, pt, productId));
                     if (!IsCurrent()) return;
                     if (prev.Sales > 0)
                     {
@@ -371,7 +393,7 @@ public sealed partial class ReportsViewModel : PageViewModel
                         SalesGrouping.Day => " by day",
                         _ => " by month",
                     };
-                    var rows = await _reports.SalesByPeriodAsync(from, to, grouping, productId);
+                    var rows = await Task.Run(() => _reports.SalesByPeriodAsync(from, to, grouping, productId));
                     if (!IsCurrent()) return;
                     var now = _clock.LocalNow;
                     foreach (var r in rows)
@@ -384,7 +406,7 @@ public sealed partial class ReportsViewModel : PageViewModel
                 ProductRows.Clear();
                 if (ShowSalesOverview)
                 {
-                    var products = await _reports.ByProductAsync(from, to, section == ReportSection.Today ? 10 : null);
+                    var products = await Task.Run(() => _reports.ByProductAsync(from, to, section == ReportSection.Today ? 10 : null));
                     if (!IsCurrent()) return;
                     foreach (var p in products) ProductRows.Add(p);
                 }
@@ -393,7 +415,8 @@ public sealed partial class ReportsViewModel : PageViewModel
             case ReportSection.Stock:
             {
                 StockRows.Clear();
-                var rows = await _reports.StockAsync();
+                var rows = await Task.Run(() => _reports.StockAsync());
+                if (refresh != _refreshVersion) return;
                 foreach (var r in rows) StockRows.Add(r);
                 Tiles.Add(new("Products", rows.Count.ToString(CultureInfo.InvariantCulture)));
                 Tiles.Add(new("Units on hand", rows.Sum(r => r.Qty).ToString("N0", CultureInfo.InvariantCulture)));
@@ -404,11 +427,15 @@ public sealed partial class ReportsViewModel : PageViewModel
             case ReportSection.LowStockExpiry:
             {
                 LowRows.Clear();
-                foreach (var r in await _catalog.LowStockAsync()) LowRows.Add(r);
+                var low = await Task.Run(() => _catalog.LowStockAsync());
+                if (refresh != _refreshVersion) return;
+                foreach (var r in low) LowRows.Add(r);
                 Tiles.Add(new("Low stock", LowRows.Count(r => r.StockQty > 0).ToString(CultureInfo.InvariantCulture), "at or below reorder level"));
                 Tiles.Add(new("Out of stock", LowRows.Count(r => r.StockQty <= 0).ToString(CultureInfo.InvariantCulture)));
                 ExpiryRows.Clear();
-                foreach (var r in await _catalog.ExpiringAsync(60)) ExpiryRows.Add(r);
+                var expiring = await Task.Run(() => _catalog.ExpiringAsync(60));
+                if (refresh != _refreshVersion) return;
+                foreach (var r in expiring) ExpiryRows.Add(r);
                 Tiles.Add(new("Already expired", ExpiryRows.Where(r => r.DaysLeft < 0).Sum(r => r.QtyOnHand).ToString(CultureInfo.InvariantCulture), "units: take them off the shelf"));
                 Tiles.Add(new("Expires in 60 days", ExpiryRows.Where(r => r.DaysLeft >= 0).Sum(r => r.QtyOnHand).ToString(CultureInfo.InvariantCulture), "units: sell these first"));
                 break;
@@ -416,7 +443,8 @@ public sealed partial class ReportsViewModel : PageViewModel
             case ReportSection.Changes:
             {
                 Changes.Clear();
-                var rows = await _reports.ChangesAsync(F, T);
+                var rows = await Task.Run(() => _reports.ChangesAsync(dateFrom, dateTo));
+                if (refresh != _refreshVersion) return;
                 foreach (var r in rows) Changes.Add(r);
                 Tiles.Add(new("Price changes on bills", rows.Count(r => r.Action == "Price changed on bill").ToString(CultureInfo.InvariantCulture)));
                 Tiles.Add(new("Discounts", rows.Count(r => r.Action is "Item discount" or "Bill discount").ToString(CultureInfo.InvariantCulture)));
@@ -431,22 +459,31 @@ public sealed partial class ReportsViewModel : PageViewModel
             case ReportSection.Activity:
             {
                 Changes.Clear();
-                foreach (var r in await _reports.ActivityAsync(F, T, BillSearch)) Changes.Add(r);
+                var activity = await Task.Run(() => _reports.ActivityAsync(dateFrom, dateTo, search));
+                if (refresh != _refreshVersion) return;
+                foreach (var r in activity) Changes.Add(r);
                 Tiles.Add(new("Events", Changes.Count.ToString(CultureInfo.InvariantCulture)));
                 Tiles.Add(new("Sign-ins", Changes.Count(c => c.Action == "Signed in").ToString(CultureInfo.InvariantCulture)));
                 Tiles.Add(new("Wrong PINs", Changes.Count(c => c.Action == "Wrong PIN").ToString(CultureInfo.InvariantCulture)));
                 break;
             }
         }
-    });
+    }
 
-    partial void OnBillSearchChanged(string value) => _ = Section == ReportSection.Activity ? RefreshAsync() : LoadBillsAsync();
+    partial void OnBillSearchChanged(string value)
+    {
+        if (Section == ReportSection.Activity) _ = RefreshAsync();
+        if (Section == ReportSection.Bills) _ = Ui.Run(LoadBillsAsync);
+    }
 
     private async Task LoadBillsAsync()
     {
+        var (from, to, text) = (F, T, BillSearch);
         var keep = SelectedBill?.Id;
+        var rows = await Task.Run(() => _sales.ListAsync(from, to, text));
+        if (Section != ReportSection.Bills || F != from || T != to || BillSearch != text) return;
         Bills.Clear();
-        foreach (var b in await _sales.ListAsync(F, T, BillSearch)) Bills.Add(b);
+        foreach (var b in rows) Bills.Add(b);
         SelectedBill = Bills.FirstOrDefault(b => b.Id == keep);
     }
 

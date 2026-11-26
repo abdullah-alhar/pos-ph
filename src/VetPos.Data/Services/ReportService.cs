@@ -42,6 +42,15 @@ public sealed record ChangeLogRow(DateTime AtLocal, string Action, string User, 
 /// <summary>Reports. Voided bills never count as sales (they are counted separately).</summary>
 public sealed class ReportService(IDbContextFactory<VetPosDbContext> dbFactory, ShopClock clock)
 {
+    public async Task<(int Bills, decimal Sales)> OverviewAsync(DateOnly day, CancellationToken ct = default)
+    {
+        var (from, to) = clock.Range(day, day);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var totals = await db.Sales.Where(s => s.Status == SaleStatus.Completed && s.CreatedAt >= from && s.CreatedAt < to)
+            .Select(s => s.Total).ToListAsync(ct);
+        return (totals.Count, totals.Sum());
+    }
+
     private async Task<List<Sale>> SalesAsync(VetPosDbContext db, DateOnly from, DateOnly to, bool withLines, CancellationToken ct)
     {
         var (f, t) = clock.Range(from, to);

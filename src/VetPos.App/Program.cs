@@ -8,7 +8,8 @@ public static class Program
     public static void Main(string[] args)
     {
         // Velopack must run first: it handles install / update / uninstall hooks and exits when needed.
-        VelopackApp.Build().Run();
+        // UpdateService applies downloaded packages after a verified backup.
+        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         var app = new App();
         app.InitializeComponent();
         Environment.ExitCode = app.Run();

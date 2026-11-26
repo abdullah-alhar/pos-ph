@@ -40,6 +40,26 @@
       <editor:EqualsLabelConverter x:Key="EqualsLabel" />
       <editor:IssueBadgeConverter x:Key="IssueBadge" />
 
+      <DataTemplate x:Key="ActiveUpdateProgress">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+            <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite" />
+            <ProgressBar Height="4" Maximum="100" Margin="0,6,0,0" Value="{Binding Progress, Mode=OneWay}"
+                         IsIndeterminate="{Binding IsIndeterminate}" AutomationProperties.Name="Update download progress" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Style="{StaticResource Button.Small}" Content="Skip" Command="{Binding SkipUpdateCommand}"
+                    AutomationProperties.Name="Skip this update" Margin="0,0,6,0" />
+            <Button Style="{StaticResource Button.Small}" Content="Run in background" Command="{Binding RunInBackgroundCommand}" />
+          </StackPanel>
+        </Grid>
+      </DataTemplate>
+
       <!--
         Implicit styles live here, at the top level, so they always win over the Fluent theme's
         own implicit styles (which WPF merges in when ThemeMode is set).
