@@ -9,9 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version for the test installer (for example, 1.0.1-beta.1)
+        description: Version (for example, 1.0.1 for a shop update or 1.0.1-beta.1 for a prerelease)
         required: true
         type: string
+      publish_release:
+        description: Publish to GitHub Releases from main. Leave unchecked for a test installer.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,33 +31,55 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
+      - name: Choose the release version
+        id: version
+        if: github.event_name != 'pull_request'
+        env:
+          PREVIEW_VERSION: ${{ inputs.version }}
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
+          PREVIOUS_COMMIT: ${{ github.event.before }}
+        run: |
+          if ($env:PUBLISH_RELEASE -eq 'true' -and $env:GITHUB_REF -ne 'refs/heads/main') {
+            throw 'Select the main branch to publish a release.'
+          }
+          $number = '(?:0|[1-9][0-9]*)'
+          $stable = "\A$number\.$number\.$number\z"
+          $identifier = "(?:$number|[0-9a-z-]*[a-z-][0-9a-z-]*)"
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $version = $env:PREVIEW_VERSION
+          } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            if ($env:PREVIOUS_COMMIT -match '^0+$') { return }
+            $previousFile = git show "${env:PREVIOUS_COMMIT}:Directory.Build.props"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $versionPath = '/Project/PropertyGroup/Version'
+            $previous = ([xml]($previousFile -join "`n")).SelectSingleNode($versionPath).InnerText
+            $version = ([xml](Get-Content Directory.Build.props -Raw)).SelectSingleNode($versionPath).InnerText
+            if ($version -ceq $previous) { return }
+            if ($version -cnotmatch $stable -or $previous -cnotmatch $stable -or [version]$version -le [version]$previous) {
+              throw 'Increase Version in Directory.Build.props to a stable MAJOR.MINOR.PATCH version.'
+            }
+          }
+          if ($version -cnotmatch "\A$number\.$number\.$number(?:-$identifier(?:\.$identifier)*)?\z") {
+            throw 'Use a MAJOR.MINOR.PATCH version. A lowercase prerelease suffix such as -beta.1 is optional for tags and manual runs.'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Run tests
-        if: github.event_name != 'workflow_dispatch' && github.ref_type != 'tag'
+        if: steps.version.outputs.version == ''
         run: dotnet test --solution VetPos.slnx --configuration Release
 
       - name: Build the app for the startup check
-        if: github.event_name != 'workflow_dispatch' && github.ref_type != 'tag'
+        if: steps.version.outputs.version == ''
         run: dotnet publish src/VetPos.App --configuration Release --output publish/win-x64
-
-      - name: Validate release version
-        id: version
-        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
-        env:
-          PREVIEW_VERSION: ${{ inputs.version }}
-        run: |
-          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { "v$env:PREVIEW_VERSION" } else { $env:GITHUB_REF_NAME }
-          $number = '(?:0|[1-9][0-9]*)'
-          $identifier = "(?:$number|[0-9a-z-]*[a-z-][0-9a-z-]*)"
-          if ($tag -cnotmatch "\Av$number\.$number\.$number(?:-$identifier(?:\.$identifier)*)?\z") {
-            throw 'Use vMAJOR.MINOR.PATCH for tags or MAJOR.MINOR.PATCH for manual runs. A lowercase prerelease suffix such as -beta.1 is optional.'
-          }
-          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
 
       - name: Test and package the Windows installer
         if: steps.version.outputs.version != ''
@@ -112,16 +138,24 @@ jobs:
           compression-level: 0
           overwrite: true
 
+      - name: Explain where to find the test installer
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_release
+        run: |
+          'The test installer is in Artifacts below. To send an update to installed shops automatically, increase Version in Directory.Build.props and merge it into main.' >> $env:GITHUB_STEP_SUMMARY
+
   publish:
     name: Publish GitHub release
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    if: >-
+      needs.build.outputs.version != '' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_release))
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
     concurrency:
-      group: vetpos-release-${{ github.ref_name }}
+      group: vetpos-release-v${{ needs.build.outputs.version }}
       cancel-in-progress: false
     steps:
       - uses: actions/download-artifact@v8
@@ -135,7 +169,23 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="v$VERSION"
+          if [[ "$GITHUB_REF_TYPE" == branch ]]; then
+            object_fields='.object | [.type, .sha] | @tsv'
+            if tagged_object=$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq "$object_fields" 2>/dev/null); then
+              read -r tag_type tag_sha <<< "$tagged_object"
+              while [[ "$tag_type" == tag ]]; do
+                tagged_object=$(gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq "$object_fields")
+                read -r tag_type tag_sha <<< "$tagged_object"
+              done
+              if [[ "$tag_type" != commit || "$tag_sha" != "$GITHUB_SHA" ]]; then
+                echo "Tag $tag points to a different commit. Use a new version."
+                exit 1
+              fi
+            else
+              gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" --silent
+            fi
+          fi
           release_flags=(--prerelease=false)
           if [[ "$VERSION" == *-* ]]; then
             release_flags=(--prerelease --latest=false)

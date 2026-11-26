@@ -106,15 +106,16 @@ quietly, and shows **“VetPOS x.y.z is ready”** at the bottom left: *Restart 
 a minute) or *Later* (it installs by itself when VetPOS next closes). Settings → About, updates &
 uninstall → *Check now* does it at once. A shared folder or another web address can be set there
 instead of GitHub (for shops without internet). No .NET install is needed, ever: it is inside VetPOS.
+The default GitHub source must be publicly readable by the shop PCs.
 
 **Publishing a new version** (always a higher number than the last one):
 
-* GitHub: after the workflow is on `main`, push a new version tag from the commit you want to ship,
-  for example `git tag v1.0.1 && git push origin v1.0.1`. GitHub Actions runs the tests on Windows
-  and publishes the installer, portable ZIP, and full Velopack update package with its feed.
-  A tag like `v1.0.1-beta.1` publishes a GitHub prerelease that installed copies skip by default.
-* Test installer: use Actions → *VetPOS release* → Run workflow, enter a version such as `1.0.1-beta.1`,
-  then download the artifact from the run summary.
+* Send an update to shops: increase `<Version>` in `Directory.Build.props` and merge it into `main`.
+  GitHub Actions runs the Windows tests and startup checks, creates the tag, and publishes the installer,
+  portable ZIP, and Velopack update files. Changes that keep the same version run the Windows checks.
+* Publish on demand: push a version tag or select **Publish to GitHub Releases** in a manual run on `main`.
+* Test installer: leave the publish box unchecked and download the artifact from the run summary.
+  A published version with a suffix such as `-beta.1` is a GitHub prerelease that installed copies skip by default.
 * From this Mac: `GITHUB_TOKEN=… ./build/publish-github.sh 1.0.0-beta.2`.
 * Without GitHub: `./build/release.sh 1.0.0-beta.2` and copy `publish/releases` to the shared folder.
 
