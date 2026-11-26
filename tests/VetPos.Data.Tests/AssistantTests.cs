@@ -143,6 +143,35 @@ public class AssistantTests
         Assert.Contains("error", bad, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Category_changes_and_privileged_navigation_require_owner_permissions()
+    {
+        var (test, owner, cashier, _, _) = await SetupAsync(new FakeAi(FakeAi.Answer("unused")));
+        await using var _ = test;
+        var tools = Tools(test);
+        var proposals = new List<AiAction>();
+
+        var category = """{"name":"Pet grooming"}""";
+        Assert.Contains("error", await tools.RunAsync("propose_create_category", category, cashier, default, proposals), StringComparison.Ordinal);
+        Assert.Empty(proposals);
+        Assert.Contains("waiting_for_confirmation", await tools.RunAsync("propose_create_category", category, owner, default, proposals), StringComparison.Ordinal);
+        var action = Assert.IsType<CreateCategoryAction>(Assert.Single(proposals));
+        var catalog = test.Get<CatalogService>();
+        Assert.DoesNotContain(await catalog.CategoriesAsync(), c => c.Name == "Pet grooming");
+
+        var executor = new AssistantActions(catalog, test.Get<StockEntryService>(), new ProductAssistant(catalog), test.Get<ShopClock>());
+        await Assert.ThrowsAsync<VetPos.Core.Rules.PosException>(() => executor.ExecuteAsync(action, cashier));
+        await executor.ExecuteAsync(action, owner);
+        Assert.Contains(await catalog.CategoriesAsync(), c => c.Name == "Pet grooming");
+
+        var open = """{"target":"reports:profit"}""";
+        var denied = await tools.RunAsync("open_screen", open, cashier, default);
+        Assert.Empty(AssistantService.LinksFor([new ToolUse("open_screen", open, denied)], cashier));
+        var allowed = await tools.RunAsync("open_screen", open, owner, default);
+        Assert.Equal("reports:profit", Assert.Single(AssistantService.LinksFor([new ToolUse("open_screen", open, allowed)], owner)).Target);
+        Assert.Contains("error", await tools.RunAsync("search_product", """{"name_or_barcode":[]}""", cashier, default), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("gsk_abcdefgh9f3a", "gsk_…9f3a")]
     [InlineData("AIzaSyD-abcdefg1234", "…1234")]

@@ -13,7 +13,7 @@
           <Path Style="{StaticResource AiSpark}" Width="24" Height="24" Margin="0,0,10,0" />
           <TextBlock Text="AI Assistant" Style="{StaticResource Text.PageTitle}" />
         </StackPanel>
-        <TextBlock Text="Ask about sales, stock and profit. Review any suggested changes before confirming."
+        <TextBlock Text="Ask about sales and inventory, open a screen, or prepare a change for review."
                    Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" TextWrapping="Wrap" />
       </StackPanel>
       <Button Style="{StaticResource Button.Subtle}" Content="New chat" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding ClearCommand}" />
@@ -27,7 +27,6 @@
         <StackPanel>
           <TextBlock Text="AI is not ready" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Warning}" />
           <TextBlock Text="{Binding Offline}" TextWrapping="Wrap" Margin="0,2,0,0" />
-          <TextBlock Text="Billing and everything else work as normal." Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,2,0,0" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -54,11 +53,7 @@
     <Grid>
       <!-- Empty: suggestions -->
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
-        <Grid Width="80" Height="80" HorizontalAlignment="Center">
-          <Ellipse Fill="{StaticResource Brush.AiGradient}" />
-          <Path Style="{StaticResource AiSpark.White}" Width="36" Height="36" />
-        </Grid>
-        <TextBlock Text="What would you like to know?" FontSize="18" FontWeight="Medium" HorizontalAlignment="Center" Margin="0,16,0,16" />
+        <TextBlock Text="Start a conversation" Style="{StaticResource Text.Title}" HorizontalAlignment="Center" Margin="0,0,0,12" />
         <ItemsControl ItemsSource="{Binding Suggestions}" MaxWidth="640">
           <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel HorizontalAlignment="Center" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>

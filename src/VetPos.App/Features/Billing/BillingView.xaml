@@ -24,11 +24,12 @@
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="360" />
+      <ColumnDefinition Width="300" />
     </Grid.ColumnDefinitions>
 
     <!-- ───────── Left: scan, bill, keys ───────── -->
-    <DockPanel Margin="20,18,20,14">
+    <DockPanel Margin="20,16,20,12">
+      <TextBlock DockPanel.Dock="Top" Text="Billing" Style="{StaticResource Text.PageTitle}" Margin="0,0,0,12" />
       <Grid DockPanel.Dock="Top" Margin="0,0,0,14" Panel.ZIndex="10">
         <Grid.ColumnDefinitions>
           <ColumnDefinition />
@@ -100,7 +101,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" MinWidth="130" />
+                        <ColumnDefinition Width="Auto" MinWidth="102" />
                       </Grid.ColumnDefinitions>
                       <!-- Kind icon -->
                       <Border Width="40" Height="40" CornerRadius="10" Background="{DynamicResource Brush.SurfaceSunken}" VerticalAlignment="Center" Margin="0,0,14,0">
@@ -199,11 +200,11 @@
             <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}" CornerRadius="14,14,0,0">
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="36" />
+                  <ColumnDefinition Width="26" />
                   <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="120" />
-                  <ColumnDefinition Width="136" />
-                  <ColumnDefinition Width="130" />
+                  <ColumnDefinition Width="88" />
+                  <ColumnDefinition Width="100" />
+                  <ColumnDefinition Width="102" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="#" VerticalAlignment="Center" FontWeight="SemiBold" />
                 <TextBlock Grid.Column="1" Text="Item" VerticalAlignment="Center" FontWeight="SemiBold" />
@@ -219,11 +220,11 @@
                   <Grid Margin="-16,0,-16,0" ds:Ds.Flash="{Binding Flash}">
                     <Grid Margin="16,12,16,12" MinHeight="44">
                       <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="26" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="120" />
-                        <ColumnDefinition Width="136" />
-                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="102" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding Number}" Style="{StaticResource Text.Caption}" FontSize="14" VerticalAlignment="Center" />
                       <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
@@ -243,9 +244,9 @@
                                Text="{Binding UnitPrice, Mode=OneWay, Converter={StaticResource Money}}"
                                GotKeyboardFocus="OnPriceFocus" PreviewKeyDown="OnPriceKey" LostKeyboardFocus="OnPriceCommit" />
                       <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button Style="{StaticResource Button.Icon}" Content="−" Focusable="False" Click="OnMinus" Width="36" Height="36" FontSize="16" />
+                        <Button Style="{StaticResource Button.Icon}" Content="−" Focusable="False" Click="OnMinus" Width="28" MinHeight="28" Height="28" FontSize="14" />
                         <TextBlock Text="{Binding Qty}" Width="44" TextAlignment="Center" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" />
-                        <Button Style="{StaticResource Button.Icon}" Content="+" Focusable="False" Click="OnPlus" Width="36" Height="36" FontSize="16" />
+                        <Button Style="{StaticResource Button.Icon}" Content="+" Focusable="False" Click="OnPlus" Width="28" MinHeight="28" Height="28" FontSize="14" />
                       </StackPanel>
                       <TextBlock Grid.Column="4" Text="{Binding Total, Converter={StaticResource Money}}" Style="{StaticResource Text.MoneyStrong}" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
                     </Grid>
@@ -267,12 +268,12 @@
         <DockPanel Visibility="{Binding ShowSuccess, Converter={StaticResource InverseBoolToVisibility}}">
           <StackPanel DockPanel.Dock="Bottom" Margin="16" >
             <!-- The total: the hero of the screen -->
-            <Border CornerRadius="16" Background="{DynamicResource Brush.Accent}" Padding="20,16,20,18" Margin="0,0,0,10">
+            <Border CornerRadius="{StaticResource Radius.Card}" Background="{DynamicResource Brush.AccentSoft}" Padding="16,12" Margin="0,0,0,10">
               <StackPanel>
-                <TextBlock Text="Total" FontSize="17" FontWeight="SemiBold" Foreground="White" Opacity="0.85" />
+                <TextBlock Text="Amount due" FontSize="15" FontWeight="Medium" Foreground="{DynamicResource Brush.AccentText}" />
                 <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left" Margin="0,2,0,0">
-                  <TextBlock FontSize="52" FontWeight="Bold" Foreground="White" Typography.NumeralAlignment="Tabular">
-                    <Run Text="Rs" FontSize="24" FontWeight="Medium" Foreground="White" /> <Run Text="{Binding Totals.Total, Mode=OneWay, Converter={StaticResource Money}}" />
+                  <TextBlock FontSize="44" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}" Typography.NumeralAlignment="Tabular">
+                    <Run Text="Rs" FontSize="24" FontWeight="Medium" Foreground="{DynamicResource Brush.AccentText}" /> <Run Text="{Binding Totals.Total, Mode=OneWay, Converter={StaticResource Money}}" />
                   </TextBlock>
                 </Viewbox>
               </StackPanel>
@@ -282,18 +283,18 @@
               <TextBlock Text="{Binding PayText}" />
             </Button>
             <UniformGrid Columns="2" Margin="0,8,0,0">
-              <Button Content="Discount" ds:Ds.KeyHint="F6" Command="{Binding BillDiscountEditCommand}" Margin="0,0,4,8" Focusable="False" IsEnabled="{Binding HasLines}" />
-              <Button Content="Hold" ds:Ds.KeyHint="F8" Command="{Binding HoldCommand}" Margin="4,0,0,8" Focusable="False" IsEnabled="{Binding HasLines}" />
-              <Button Command="{Binding RecallCommand}" Margin="0,0,4,0" Focusable="False" ds:Ds.KeyHint="F9">
+              <Button Style="{StaticResource Button.Small}" Content="Discount" ds:Ds.KeyHint="F6" Command="{Binding BillDiscountEditCommand}" Margin="0,0,4,8" Focusable="False" IsEnabled="{Binding HasLines}" />
+              <Button Style="{StaticResource Button.Small}" Content="Hold" ds:Ds.KeyHint="F8" Command="{Binding HoldCommand}" Margin="4,0,0,8" Focusable="False" IsEnabled="{Binding HasLines}" />
+              <Button Style="{StaticResource Button.Small}" Command="{Binding RecallCommand}" Margin="0,0,4,0" Focusable="False" ds:Ds.KeyHint="F9">
                 <StackPanel Orientation="Horizontal">
-                  <TextBlock Text="Bills" />
+                  <TextBlock Text="Held" />
                   <Border CornerRadius="8" Background="{DynamicResource Brush.Accent}" Padding="6,0" Margin="6,0,0,0"
                           Visibility="{Binding HeldCount, Converter={StaticResource PositiveToVisible}}">
                     <TextBlock Text="{Binding HeldCount}" Foreground="{DynamicResource Brush.OnAccent}" FontSize="13" />
                   </Border>
                 </StackPanel>
               </Button>
-              <Button Content="New" ds:Ds.KeyHint="Ctrl+N" Command="{Binding NewBillCommand}" Margin="4,0,0,0" Focusable="False" />
+              <Button Style="{StaticResource Button.Small}" Content="New" ds:Ds.KeyHint="Ctrl+N" Command="{Binding NewBillCommand}" Margin="4,0,0,0" Focusable="False" />
             </UniformGrid>
           </StackPanel>
 

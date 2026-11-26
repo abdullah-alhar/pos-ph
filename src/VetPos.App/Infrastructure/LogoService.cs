@@ -10,6 +10,7 @@ namespace VetPos.App.Infrastructure;
 public sealed class LogoService(AppPaths paths)
 {
     private LogoBitmap? _printable;
+    private BitmapSource? _screenLogo;
 
     public string LogoFile => Path.Combine(paths.AssetsDir, "logo.png");
     public string IconFile => Path.Combine(paths.AssetsDir, "logo.ico");
@@ -21,14 +22,16 @@ public sealed class LogoService(AppPaths paths)
     /// The logo as an image for the screen. Read into memory first, so the file is never locked
     /// and a new logo always shows (no stale image from WPF's cache).
     /// </summary>
-    public ImageSource? Load()
+    public ImageSource? Load() => _screenLogo ??= Read(LogoFile);
+
+    internal static BitmapSource? Read(string file)
     {
-        if (!HasLogo) return null;
+        if (!File.Exists(file)) return null;
         try
         {
             // Decoded from bytes in memory: the file is never locked and a new logo always shows.
             // (No IgnoreImageCache here: with a stream source it makes WPF itself throw.)
-            using var stream = new MemoryStream(File.ReadAllBytes(LogoFile));
+            using var stream = File.OpenRead(file);
             var img = new BitmapImage();
             img.BeginInit();
             img.CacheOption = BitmapCacheOption.OnLoad;
@@ -68,7 +71,8 @@ public sealed class LogoService(AppPaths paths)
         BitmapSource pixels;
         try
         {
-            var frame = BitmapDecoder.Create(new MemoryStream(bytes), BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.OnLoad).Frames[0];
+            using var stream = new MemoryStream(bytes);
+            var frame = BitmapDecoder.Create(stream, BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.OnLoad).Frames[0];
             var scale = Math.Min(1.0, 600.0 / Math.Max(frame.PixelWidth, frame.PixelHeight));
             BitmapSource sized = scale < 1 ? new TransformedBitmap(frame, new ScaleTransform(scale, scale)) : frame;
             // Bgra32 keeps transparency and turns CMYK / grey / 16-bit pictures into normal colours.
@@ -92,7 +96,6 @@ public sealed class LogoService(AppPaths paths)
             encoder.Frames.Add(BitmapFrame.Create(pixels));
             using (var fs = File.Create(temp)) encoder.Save(fs);
             File.Move(temp, LogoFile, overwrite: true);
-            ShopIcon.WriteIco(pixels, IconFile);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidOperationException
                                    or System.Runtime.InteropServices.COMException)
@@ -101,30 +104,38 @@ public sealed class LogoService(AppPaths paths)
             try { File.Delete(temp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             throw new VetPos.Core.Rules.PosException("The logo could not be saved in VetPOS's data folder. Restart VetPOS and try again.");
         }
+        _screenLogo = pixels;
         _printable = null;
         Changed?.Invoke(this, EventArgs.Empty);
-        RefreshShortcuts();
+        RefreshShortcuts(regenerate: true);
     }
 
     /// <summary>Desktop / Start menu shortcuts show the shop's logo (or the VetPOS icon when there is none).</summary>
-    public void RefreshShortcuts()
-    {
-        var ico = HasLogo && File.Exists(IconFile) ? IconFile : null;
-        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => ShopIcon.UpdateShortcuts(ico), System.Windows.Threading.DispatcherPriority.Background);
-    }
+    private readonly Lock _shortcutGate = new();
 
-    /// <summary>Makes logo.ico for a logo saved by an older version (before icons existed).</summary>
-    public void EnsureIcon()
+    public void RefreshShortcuts(bool regenerate = false)
     {
-        if (!HasLogo || File.Exists(IconFile)) return;
-        try
+        var logo = Load() as BitmapSource;
+        var worker = new Thread(() =>
         {
-            if (Load() is BitmapSource src) ShopIcon.WriteIco(src, IconFile);
-        }
-        catch (Exception ex)
-        {
-            Serilog.Log.Warning(ex, "Could not make the logo icon");
-        }
+            lock (_shortcutGate)
+            {
+                try
+                {
+                    if (!ReferenceEquals(logo, _screenLogo)) return;
+                    var writeIcon = logo is not null && (regenerate || !File.Exists(IconFile));
+                    if (writeIcon) ShopIcon.WriteIco(logo!, IconFile);
+                    if (logo is null && File.Exists(IconFile)) File.Delete(IconFile);
+                    ShopIcon.UpdateShortcuts(logo is not null && File.Exists(IconFile) ? IconFile : null, refreshIcon: writeIcon);
+                }
+                catch (Exception ex)
+                {
+                    Serilog.Log.Warning(ex, "Could not refresh the VetPOS icon");
+                }
+            }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
     }
 
     public void RemoveLogo()
@@ -132,12 +143,12 @@ public sealed class LogoService(AppPaths paths)
         try
         {
             if (HasLogo) File.Delete(LogoFile);
-            if (File.Exists(IconFile)) File.Delete(IconFile);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             throw new VetPos.Core.Rules.PosException("The logo could not be removed right now. Try again in a moment.");
         }
+        _screenLogo = null;
         _printable = null;
         Changed?.Invoke(this, EventArgs.Empty);
         RefreshShortcuts();

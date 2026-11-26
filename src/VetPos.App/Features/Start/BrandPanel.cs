@@ -14,7 +14,7 @@ public sealed class BrandPanel : ContentControl
     public static readonly DependencyProperty TimeTextProperty = DependencyProperty.Register(nameof(TimeText), typeof(string), typeof(BrandPanel));
     public static readonly DependencyProperty DateTextProperty = DependencyProperty.Register(nameof(DateText), typeof(string), typeof(BrandPanel));
 
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(15) };
 
     public BrandPanel()
     {

@@ -62,7 +62,7 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
             var exactIds = (await db.Products.Where(p => p.Barcode == t).Select(p => p.Id)
                 .Concat(db.ProductBarcodes.Where(b => b.Code == t).Select(b => b.ProductId)).ToListAsync(ct)).ToHashSet();
             // … or every word somewhere (start, middle or end) in the name, generic name, barcode or category.
-            var words = db.Products.AsQueryable();
+            var words = db.Products.AsNoTracking().Where(p => includeInactive || p.IsActive);
             var parts = t.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var w in parts)
             {
@@ -72,27 +72,32 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
                     || (p.Barcode != null && EF.Functions.Like(p.Barcode, like, "\\"))
                     || EF.Functions.Like(p.Category!.Name, like, "\\"));
             }
-            var ids = await words.Select(p => p.Id).Take(Math.Max(limit * 8, 200)).ToListAsync(ct);
-            ids.AddRange(exactIds);
-            q = q.Where(p => ids.Contains(p.Id));
-            // Best match first: exact barcode, then names that start with the text, then a word that
-            // starts with it, then anywhere.
-            var found = await q.ToListAsync(ct);
-            return found
-                .OrderBy(p => exactIds.Contains(p.Id) ? 0 : Rank(p, t, parts))
+            var candidates = await words.Select(p => new { p.Id, p.Name }).ToListAsync(ct);
+            if (exactIds.Count > 0)
+            {
+                var exact = await db.Products.Where(p => (includeInactive || p.IsActive) && exactIds.Contains(p.Id))
+                    .Select(p => new { p.Id, p.Name }).ToListAsync(ct);
+                candidates.AddRange(exact);
+            }
+
+            var orderedIds = candidates.DistinctBy(p => p.Id)
+                .OrderBy(p => exactIds.Contains(p.Id) ? 0 : Rank(p.Name, t, parts))
                 .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-                .Take(limit).Select(Row).ToList();
+                .Take(limit).Select(p => p.Id).ToArray();
+            if (orderedIds.Length == 0) return [];
+            var found = await q.Where(p => orderedIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
+            return orderedIds.Where(found.ContainsKey).Select(id => Row(found[id])).ToList();
         }
         var list = await q.OrderBy(p => p.Name).Take(limit).ToListAsync(ct);
         return list.Select(Row).ToList();
     }
 
-    private static int Rank(Product p, string text, string[] words)
+    private static int Rank(string name, string text, string[] words)
     {
-        if (p.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase)) return 1;
-        var nameWords = p.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (name.StartsWith(text, StringComparison.OrdinalIgnoreCase)) return 1;
+        var nameWords = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.All(w => nameWords.Any(n => n.StartsWith(w, StringComparison.OrdinalIgnoreCase)))) return 2;
-        if (words.All(w => p.Name.Contains(w, StringComparison.OrdinalIgnoreCase))) return 3;
+        if (words.All(w => name.Contains(w, StringComparison.OrdinalIgnoreCase))) return 3;
         return 4;
     }
 
@@ -276,11 +281,27 @@ public sealed class CatalogService(IDbContextFactory<VetPosDbContext> dbFactory,
     }
 
     /// <summary>Products at or below their reorder level (active only), lowest first.</summary>
+    private static IQueryable<Product> LowStockProducts(VetPosDbContext db) =>
+        db.Products.AsNoTracking().Where(p => p.IsActive && p.ReorderLevel > 0 && p.StockQty <= p.ReorderLevel);
+
+    public async Task<int> CountLowStockAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await LowStockProducts(db).CountAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<(string Name, int StockQty, int ReorderLevel)>> LowStockCountsAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var rows = await LowStockProducts(db).OrderBy(p => p.StockQty).ThenBy(p => p.Name)
+            .Select(p => new { p.Name, p.StockQty, p.ReorderLevel }).ToListAsync(ct);
+        return rows.Select(p => (p.Name, p.StockQty, p.ReorderLevel)).ToList();
+    }
+
     public async Task<IReadOnlyList<ProductRow>> LowStockAsync(CancellationToken ct = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(ct);
-        var list = await db.Products.AsNoTracking().Include(p => p.Category).Include(p => p.Batches)
-            .Where(p => p.IsActive && p.ReorderLevel > 0 && p.StockQty <= p.ReorderLevel).ToListAsync(ct);
+        var list = await LowStockProducts(db).Include(p => p.Category).Include(p => p.Batches).ToListAsync(ct);
         return list.Select(Row).OrderBy(r => r.StockQty).ThenBy(r => r.Name).ToList();
     }
 

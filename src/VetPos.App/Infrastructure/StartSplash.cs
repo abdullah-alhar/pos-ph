@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -9,12 +10,7 @@ using VetPos.Core.Infrastructure;
 
 namespace VetPos.App.Infrastructure;
 
-/// <summary>
-/// The loading window while VetPOS starts: logo (the shop's own when it has one) with a soft pulse,
-/// the name, a moving bar and what is happening right now. It closes by itself when the till is
-/// ready; if start-up fails it turns into a clear error page (what happened, reference, logs).
-/// Built in code with fixed colours: the theme and settings are not loaded yet at this point.
-/// </summary>
+/// <summary>Shows local startup progress before the main window opens.</summary>
 public sealed class StartSplash
 {
     private static readonly Color Ink = Color.FromRgb(0x10, 0x23, 0x22);
@@ -25,76 +21,70 @@ public sealed class StartSplash
     private readonly Window _window;
     private readonly TextBlock _status;
     private readonly StackPanel _loading;
+    private readonly ProgressBar _progress;
     private bool _closed;
 
-    private StartSplash(Window window, TextBlock status, StackPanel loading)
+    private StartSplash(Window window, TextBlock status, StackPanel loading, ProgressBar progress)
     {
         _window = window;
         _status = status;
         _loading = loading;
+        _progress = progress;
     }
 
     public static StartSplash Show()
     {
-        var logo = LoadShopLogo() ?? new BitmapImage(new Uri("pack://application:,,,/VetPOS;component/Assets/vetpos-256.png"));
+        var logo = LogoService.Read(Path.Combine(AppPaths.Default().AssetsDir, "logo.png")) ?? new BitmapImage(new Uri("pack://application:,,,/VetPOS;component/Assets/vetpos-256.png"));
 
-        // Logo in a white tile with a soft "breathing" pulse.
         var tile = new Border
         {
-            Width = 112, Height = 112, CornerRadius = new CornerRadius(26), Background = Brushes.White, Padding = new Thickness(14),
-            BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center,
+            Width = 76, Height = 76, CornerRadius = new CornerRadius(10), Background = Brushes.White, Padding = new Thickness(8),
+            BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Left,
             Child = new Image { Source = logo, Stretch = Stretch.Uniform },
-            RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1),
         };
-        RenderOptions.SetBitmapScalingMode(tile.Child, BitmapScalingMode.HighQuality);
 
-        var name = new TextBlock { Text = "VetPOS", FontSize = 26, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Ink), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 18, 0, 0) };
-        var status = new TextBlock { Text = "Starting…", FontSize = 14, Foreground = new SolidColorBrush(Muted), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 16) };
+        var name = new TextBlock { Text = "Starting VetPOS", FontSize = 24, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Ink), Margin = new Thickness(0, 18, 0, 0) };
+        var status = new TextBlock { Text = "Preparing startup…", FontSize = 14, Foreground = new SolidColorBrush(Muted), Margin = new Thickness(0, 6, 0, 14) };
+        AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+        var progress = new ProgressBar
+        {
+            Maximum = 4, Height = 5, Foreground = new SolidColorBrush(Teal), Background = new SolidColorBrush(Line),
+        };
+        AutomationProperties.SetName(progress, "Startup steps completed");
 
-        // A short teal bar that slides across a light track.
-        var track = new Grid { Width = 220, Height = 4, ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Center, Background = new SolidColorBrush(Line) };
-        var bar = new Border { Width = 70, Height = 4, CornerRadius = new CornerRadius(2), Background = new SolidColorBrush(Teal), HorizontalAlignment = HorizontalAlignment.Left, RenderTransform = new TranslateTransform(-70, 0) };
-        track.Children.Add(bar);
-
-        var loading = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var loading = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(36, 24, 36, 24) };
         loading.Children.Add(tile);
         loading.Children.Add(name);
         loading.Children.Add(status);
-        loading.Children.Add(track);
+        loading.Children.Add(progress);
 
         var window = new Window
         {
-            Width = 460, Height = 340, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, Title = "VetPOS",
+            Width = 420, Height = 260, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, Title = "VetPOS",
             WindowStartupLocation = WindowStartupLocation.CenterScreen, ShowInTaskbar = true, Topmost = false,
             Background = new SolidColorBrush(Color.FromRgb(0xF6, 0xF8, 0xF7)), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1),
             Content = loading,
             Icon = new BitmapImage(new Uri("pack://application:,,,/VetPOS;component/Assets/vetpos.ico")),
         };
-        window.Loaded += (_, _) =>
-        {
-            ((TranslateTransform)bar.RenderTransform).BeginAnimation(TranslateTransform.XProperty,
-                new DoubleAnimation(-70, 220, TimeSpan.FromSeconds(1.1)) { RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut } });
-            var pulse = new DoubleAnimation(1, 0.96, TimeSpan.FromSeconds(0.9)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() };
-            ((ScaleTransform)tile.RenderTransform).BeginAnimation(ScaleTransform.ScaleXProperty, pulse);
-            ((ScaleTransform)tile.RenderTransform).BeginAnimation(ScaleTransform.ScaleYProperty, pulse);
-        };
         window.Show();
         // The app closes with its main window: the loading window must never count as that.
         if (ReferenceEquals(Application.Current.MainWindow, window)) Application.Current.MainWindow = null;
-        return new StartSplash(window, status, loading);
+        return new StartSplash(window, status, loading, progress);
     }
 
-    /// <summary>What is happening now ("Opening the shop's data…").</summary>
-    public void Status(string text)
+    public void Status(string text, int completedSteps)
     {
-        if (!_closed) _status.Text = text;
+        if (_closed) return;
+        _status.Text = text;
+        _progress.Value = completedSteps;
     }
 
     public void Close(TimeSpan fade)
     {
         if (_closed) return;
         _closed = true;
-        if (fade <= TimeSpan.Zero)
+        _progress.Value = _progress.Maximum;
+        if (fade <= TimeSpan.Zero || !DesignSystem.Motion.Enabled)
         {
             _window.Close();
             return;
@@ -146,25 +136,4 @@ public sealed class StartSplash
         return done.Task;
     }
 
-    private static BitmapImage? LoadShopLogo()
-    {
-        try
-        {
-            var file = Path.Combine(AppPaths.Default().AssetsDir, "logo.png");
-            if (!File.Exists(file)) return null;
-            using var stream = new MemoryStream(File.ReadAllBytes(file));
-            var img = new BitmapImage();
-            img.BeginInit();
-            img.CacheOption = BitmapCacheOption.OnLoad;
-            img.StreamSource = stream;
-            img.EndInit();
-            img.Freeze();
-            return img;
-        }
-        catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or ArgumentException
-                                   or UnauthorizedAccessException or FileFormatException or System.Runtime.InteropServices.COMException)
-        {
-            return null; // the VetPOS picture instead
-        }
-    }
 }

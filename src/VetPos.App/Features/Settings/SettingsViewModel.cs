@@ -490,14 +490,8 @@ public sealed partial class SettingsViewModel : PageViewModel
         Ui.Toasts.Show("Update source saved.");
     });
 
-    /// <summary>Check now: finds and downloads a new version, then offers to restart into it.</summary>
+    public UpdateService Updates => _updates;
+
     [RelayCommand]
-    private Task CheckUpdates() => Ui.Run(async () =>
-    {
-        var updates = _updates;
-        var version = await updates.CheckAsync(quiet: false);
-        if (version is null) { Ui.Toasts.Show($"VetPOS {Version} is the newest version.", ToastKind.Info); return; }
-        if (!await Ui.Dialogs.ConfirmAsync($"VetPOS {version} is ready", "A backup is made first, then VetPOS restarts into the new version (about a minute). Choose Later to install it when VetPOS next closes.", "Restart now", "Later")) return;
-        await updates.RestartNowAsync(Ui.Session.Actor);
-    });
+    private Task CheckUpdates() => _updates.CheckAsync(quiet: false);
 }

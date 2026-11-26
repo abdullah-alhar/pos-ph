@@ -6,24 +6,12 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Threading;
-using VetPos.App.DesignSystem;
 using VetPos.App.Shell;
 
 namespace VetPos.App.Features.Home;
 
 public partial class HomeView : UserControl
 {
-    // ---------- Attached property: one-line help under each card title ----------
-
-    public static readonly DependencyProperty DescriptionProperty =
-        DependencyProperty.RegisterAttached("Description", typeof(string), typeof(HomeView),
-            new PropertyMetadata(string.Empty));
-
-    public static string GetDescription(DependencyObject o) => (string)o.GetValue(DescriptionProperty);
-    public static void SetDescription(DependencyObject o, string v) => o.SetValue(DescriptionProperty, v);
-
     // ---------- Items from the shell (same list the sidebar uses) ----------
 
     public static readonly DependencyProperty ItemsProperty =
@@ -65,7 +53,7 @@ public partial class HomeView : UserControl
 
     public static readonly DependencyProperty ColumnCountProperty =
         DependencyProperty.Register(nameof(ColumnCount), typeof(int),
-            typeof(HomeView), new PropertyMetadata(4));
+            typeof(HomeView), new PropertyMetadata(2));
 
     public int ColumnCount
     {
@@ -79,43 +67,8 @@ public partial class HomeView : UserControl
         CardList.ItemsSource = _cards;
 
         SizeChanged += (_, e) =>
-            ColumnCount = e.NewSize.Width >= 1000 ? 4 : e.NewSize.Width >= 700 ? 3 : 2;
+            ColumnCount = e.NewSize.Width >= 1080 ? 3 : e.NewSize.Width >= 600 ? 2 : 1;
     }
-
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        // Same short page fade-in the rest of the app uses.
-        Motion.FadeScaleIn(this);
-    }
-
-    // ---------- Card entrance: one soft fade, one card after another ----------
-
-    private void Card_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button card) return;
-
-        // Respect the Windows "show animations" setting.
-        if (!SystemParameters.ClientAreaAnimation)
-        {
-            card.Opacity = 1;
-            return;
-        }
-
-        int index = card.DataContext is NavItem nav ? Math.Max(0, _cards.IndexOf(nav)) : 0;
-
-        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
-        {
-            BeginTime = TimeSpan.FromMilliseconds(40 * index),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
-        };
-        card.BeginAnimation(OpacityProperty, fade);
-
-        // Put keyboard focus on the first card so the keyboard works straight away.
-        if (index == 0)
-            card.Dispatcher.BeginInvoke(() => card.Focus(), DispatcherPriority.Input);
-    }
-
-    // ---------- Quick start buttons (Start a new bill / Add stock / Find a product) ----------
 
     private void QuickAction_Click(object sender, RoutedEventArgs e)
     {

@@ -87,13 +87,6 @@ public sealed partial class LoginViewModel(AuthService auth, SettingsService set
 
     public event EventHandler<UserInfo>? Done;
 
-    public string Greeting { get; } = DateTime.Now.Hour switch
-    {
-        < 12 => "Good morning",
-        < 17 => "Good afternoon",
-        _ => "Good evening",
-    };
-
     public bool ShowUserTiles => Users.Count > 0 && !TypeUsername;
 
     partial void OnTypeUsernameChanged(bool value)
@@ -122,10 +115,6 @@ public sealed partial class LoginViewModel(AuthService auth, SettingsService set
         SelectedUser = Users.FirstOrDefault(u => u.User.Username.Equals(Username, StringComparison.OrdinalIgnoreCase))
             ?? Users.OrderByDescending(u => u.User.LastLoginAt ?? DateTime.MinValue).FirstOrDefault();
         OnPropertyChanged(nameof(ShowUserTiles));
-
-        // Check for updates quietly as soon as the login screen appears.
-        // No internet → silently skipped; result visible via the Updates.ReadyVersion binding.
-        await ErrorHandling.Quietly(() => Updates.CheckAsync(quiet: true), "login update check");
     }
 
     [RelayCommand]
