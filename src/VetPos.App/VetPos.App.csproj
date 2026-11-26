@@ -43,7 +43,6 @@
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="ClosedXML" />
     <PackageReference Include="Velopack" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="System.Speech" />
   </ItemGroup>
 </Project>
