@@ -95,7 +95,7 @@ public partial class App : Application
 
         try
         {
-            splash?.Status("Opening the shop's data…");
+            splash?.Status("Starting local services…", 1);
             _host = BuildHost(preview is null ? e.Args : [], paths);
             await _host.StartAsync();
 
@@ -103,20 +103,21 @@ public partial class App : Application
 #if DEBUG
             addSampleData = true;
 #endif
-            splash?.Status("Checking the data is healthy…");
-            var start = await _host.Services.GetRequiredService<DatabaseInitializer>().InitializeAsync(addSampleData);
-            splash?.Status("Getting the till ready…");
+            splash?.Status("Checking shop data…", 2);
+            var initializer = _host.Services.GetRequiredService<DatabaseInitializer>();
+            var start = await Task.Run(() => initializer.InitializeAsync(addSampleData));
+            splash?.Status("Preparing sign-in…", 3);
             _host.Services.GetRequiredService<StartupInfo>().Database = start;
 
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             var logo = _host.Services.GetRequiredService<LogoService>();
-            logo.EnsureIcon();
             if (preview is null) logo.RefreshShortcuts();
             var root = _host.Services.GetRequiredService<RootViewModel>();
             await root.StartAsync(); // theme is applied here, before the window shows
             ErrorHandling.Toasts = _host.Services.GetRequiredService<IToastService>();
             window.Show();
+            if (preview is null) _host.Services.GetRequiredService<UpdateService>().Start();
             CloseSplash(splash, TimeSpan.FromMilliseconds(200));
             if (preview is not null)
             {

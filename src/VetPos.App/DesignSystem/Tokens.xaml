@@ -33,21 +33,21 @@
   <sys:Double x:Key="Space.7">48</sys:Double>
   <Thickness x:Key="Pad.Control">12,0,12,0</Thickness>
   <Thickness x:Key="Pad.Card">20</Thickness>
-  <Thickness x:Key="Pad.Page">32,28,32,24</Thickness>
+  <Thickness x:Key="Pad.Page">24,20,24,20</Thickness>
 
   <sys:Double x:Key="Height.ControlSmall">36</sys:Double>
-  <sys:Double x:Key="Height.Control">48</sys:Double>
+  <sys:Double x:Key="Height.Control">42</sys:Double>
   <sys:Double x:Key="Height.ControlLarge">56</sys:Double>
   <sys:Double x:Key="Height.Pay">72</sys:Double>
-  <sys:Double x:Key="Height.Row">68</sys:Double>
-  <sys:Double x:Key="Width.Sidebar">232</sys:Double>
-  <sys:Double x:Key="Width.SidebarCollapsed">96</sys:Double>
+  <sys:Double x:Key="Height.Row">56</sys:Double>
+  <sys:Double x:Key="Width.Sidebar">218</sys:Double>
+  <sys:Double x:Key="Width.SidebarCollapsed">72</sys:Double>
   <sys:Double x:Key="Width.TotalsPanel">360</sys:Double>
 
   <CornerRadius x:Key="Radius.Small">6</CornerRadius>
-  <CornerRadius x:Key="Radius.Input">10</CornerRadius>
-  <CornerRadius x:Key="Radius.Button">10</CornerRadius>
-  <CornerRadius x:Key="Radius.Card">14</CornerRadius>
+  <CornerRadius x:Key="Radius.Input">7</CornerRadius>
+  <CornerRadius x:Key="Radius.Button">7</CornerRadius>
+  <CornerRadius x:Key="Radius.Card">8</CornerRadius>
   <CornerRadius x:Key="Radius.Sheet">18</CornerRadius>
   <CornerRadius x:Key="Radius.Pill">999</CornerRadius>
 

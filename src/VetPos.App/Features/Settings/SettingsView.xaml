@@ -247,6 +247,8 @@
               <TextBox Text="{Binding AiCustomUrl, UpdateSourceTrigger=PropertyChanged}" ds:Ds.Placeholder="https://…/v1" />
             </StackPanel>
             <TextBlock Text="Model (optional for built-in providers)" Style="{StaticResource L}" />
+            <TextBlock Text="Chat messages and the shop data returned by tools are sent to the selected AI provider. Keep passwords, payment details, and other private information out of chat."
+                       Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,4" />
             <TextBox Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" ds:Ds.Placeholder="{Binding AiProvider.DefaultModel}" Width="340" HorizontalAlignment="Left" />
             <TextBlock Text="API key (encrypted on this PC with Windows; never shown again)" Style="{StaticResource L}" />
             <PasswordBox x:Name="KeyBox" Style="{StaticResource PinBox}" MaxLength="400" FontSize="14" Width="340" HorizontalAlignment="Left" />
@@ -323,9 +325,8 @@
                       ToolTip="Puts a zip with the logs on the Desktop to send to support. No bills or PINs are in it." />
             </StackPanel>
             <TextBlock Text="Updates" Style="{StaticResource Text.Overline}" Margin="0,28,0,0" />
-            <TextBlock Text="VetPOS updates itself. It looks for a new version by itself every 2 hours and downloads it quietly. When one is ready you see “Update ready” at the bottom of the menu: restart now, or it installs the next time VetPOS closes."
-                       Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0" />
-            <Button Style="{StaticResource Button.Primary}" Content="Check now" Command="{Binding CheckUpdatesCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" />
+            <TextBlock Text="{Binding Updates.Status}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <Button Style="{StaticResource Button.Primary}" Content="Check now" Command="{Binding CheckUpdatesCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
             <TextBlock Text="Uninstall" Style="{StaticResource Text.Overline}" Margin="0,28,0,0" />
             <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0"
                        Text="Removes VetPOS from this PC (also possible from Windows Settings → Apps). The shop's data is kept unless you choose to delete it; a copy is then saved to Documents first." />

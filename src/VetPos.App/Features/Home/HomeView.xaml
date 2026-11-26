@@ -1,383 +1,112 @@
 <UserControl x:Class="VetPos.App.Features.Home.HomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:ds="clr-namespace:VetPos.App.DesignSystem"
-             xmlns:app="clr-namespace:VetPos.App"
-             xmlns:shell="clr-namespace:VetPos.App.Shell"
-             xmlns:local="clr-namespace:VetPos.App.Features.Home"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance local:HomeViewModel}"
-             Loaded="OnLoaded">
+             xmlns:local="clr-namespace:VetPos.App.Features.Home">
   <UserControl.Resources>
-
-    <!-- Turns a section title (Billing, Products...) into a one-line help text. Defined in HomeView.xaml.cs -->
     <local:NavDescriptionConverter x:Key="NavDesc" />
-
-    <!-- Section heading used above each block on the page -->
-    <Style x:Key="Home.SectionTitle" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="16" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
-    </Style>
-
-    <!-- Small summary tile (bills today, sales today, low stock) -->
-    <Style x:Key="Home.StatTile" TargetType="Border">
-      <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}" />
+    <Style x:Key="Metric" TargetType="Border">
       <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
       <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="20,16" />
+      <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}" />
+      <Setter Property="Padding" Value="16,13" />
+      <Setter Property="Margin" Value="0,0,10,0" />
     </Style>
-
-    <!--
-      Home card style (bigger than before).
-        Content                 = icon glyph
-        Tag                     = tint brush of the section
-        ToolTip                 = section title
-        ds:Ds.KeyHint           = shortcut text
-        local:HomeView.Description = one-line help text
-      Cards start invisible (Opacity 0); HomeView.Card_Loaded fades them in one after another.
-    -->
-    <Style x:Key="HomeCard" TargetType="Button">
-      <Setter Property="Focusable" Value="True" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="MinHeight" Value="224" />
-      <Setter Property="Margin" Value="8" />
-      <Setter Property="Opacity" Value="0" />
-      <Setter Property="HorizontalAlignment" Value="Stretch" />
-      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="Root"
-                    CornerRadius="{StaticResource Radius.Card}"
-                    Background="{DynamicResource Brush.Surface}"
-                    BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1"
-                    Padding="12,18"
-                    RenderTransformOrigin="0.5,0.5">
-              <Border.RenderTransform>
-                <ScaleTransform ScaleX="1" ScaleY="1" />
-              </Border.RenderTransform>
-              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <!-- Coloured icon tile matching Figma design system -->
-                <Border Width="76" Height="76" CornerRadius="18"
-                        Background="{Binding TintSoft}"
-                        HorizontalAlignment="Center">
-                  <TextBlock Text="{Binding Icon}"
-                             FontFamily="{StaticResource Font.Icons}"
-                             FontSize="36" Foreground="{Binding Tint}"
-                             HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Border>
-                <!-- Section title -->
-                <TextBlock Text="{Binding ToolTip, RelativeSource={RelativeSource TemplatedParent}}"
-                           FontSize="18" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Brush.Text}"
-                           HorizontalAlignment="Center" Margin="0,14,0,0"
-                           TextTrimming="CharacterEllipsis" />
-                <!-- One-line help -->
-                <TextBlock Text="{TemplateBinding local:HomeView.Description}"
-                           Style="{StaticResource Text.Secondary}"
-                           FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
-                           MaxWidth="210" HorizontalAlignment="Center" Margin="0,4,0,0" />
-                <!-- Shortcut chip -->
-                <Border Style="{StaticResource KeyCap}" HorizontalAlignment="Center" Margin="0,10,0,0">
-                  <TextBlock Text="{TemplateBinding ds:Ds.KeyHint}" Style="{StaticResource KeyCap.Text}" />
-                </Border>
-              </StackPanel>
-            </Border>
-            <ControlTemplate.Triggers>
-              <!-- Hover: grow 4.5 % -->
-              <Trigger Property="IsMouseOver" Value="True">
-                <Trigger.EnterActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="1.045" Duration="0:0:0.15" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="1.045" Duration="0:0:0.15" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.EnterActions>
-                <Trigger.ExitActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="1" Duration="0:0:0.12" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="1" Duration="0:0:0.12" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.ExitActions>
-                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.LineStrong}" />
-              </Trigger>
-              <!-- Keyboard focus: 2 px accent ring + same grow -->
-              <Trigger Property="IsFocused" Value="True">
-                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
-                <Setter TargetName="Root" Property="BorderThickness" Value="2" />
-                <Trigger.EnterActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="1.045" Duration="0:0:0.15" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="1.045" Duration="0:0:0.15" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.EnterActions>
-                <Trigger.ExitActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="1" Duration="0:0:0.12" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="1" Duration="0:0:0.12" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.ExitActions>
-              </Trigger>
-              <!-- Press: small shrink -->
-              <Trigger Property="IsPressed" Value="True">
-                <Trigger.EnterActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="0.97" Duration="0:0:0.1" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="0.97" Duration="0:0:0.1" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.EnterActions>
-                <Trigger.ExitActions>
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                        To="1" Duration="0:0:0.16" />
-                      <DoubleAnimation Storyboard.TargetName="Root"
-                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                        To="1" Duration="0:0:0.16" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </Trigger.ExitActions>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
+    <Style x:Key="MetricValue" TargetType="TextBlock" BasedOn="{StaticResource Text.Title}">
+      <Setter Property="Margin" Value="0,4,0,0" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
   </UserControl.Resources>
 
   <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
     <StackPanel Margin="{StaticResource Pad.Page}">
-
-      <!-- 1. Update banner: shows when a new version is ready (Later / X hide it for this session) -->
-      <Border CornerRadius="{StaticResource Radius.Input}"
-              Background="{DynamicResource Brush.AccentSoft}"
-              BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1"
-              Padding="16,10" Margin="0,0,0,20"
-              Visibility="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="&#xE8CF;" FontFamily="{StaticResource Font.Icons}" FontSize="18"
-                       Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,10,0" />
-            <TextBlock VerticalAlignment="Center">
-              <Run Text="New version released: VetPOS" Foreground="{DynamicResource Brush.AccentText}" FontWeight="Medium" />
-              <Run Text="{Binding Updates.ReadyVersion, Mode=OneWay}" Foreground="{DynamicResource Brush.AccentText}" FontWeight="SemiBold" />
-              <Run Text="is ready. Restart to finish the update." Foreground="{DynamicResource Brush.AccentText}" />
-            </TextBlock>
-          </StackPanel>
-          <Button Grid.Column="1" Style="{StaticResource Button.Primary}" Content="Restart now"
-                  Command="{Binding RestartToUpdateCommand}" Margin="12,0,0,0" Padding="14,0"
-                  Visibility="{Binding Updates.Dismissed, Converter={StaticResource InverseBoolToVisibility}}" />
-          <Button Grid.Column="2" Content="Later"
-                  Command="{Binding DismissUpdateCommand}" Margin="8,0,0,0"
-                  Visibility="{Binding Updates.Dismissed, Converter={StaticResource InverseBoolToVisibility}}" />
-          <Button Grid.Column="3" Style="{StaticResource Button.Subtle}"
-                  FontFamily="{StaticResource Font.Icons}" Content="&#xE711;" FontSize="14"
-                  Command="{Binding DismissUpdateCommand}" Margin="4,0,0,0" Width="32" Height="32" Padding="0"
-                  ToolTip="Dismiss" />
-        </Grid>
-      </Border>
-
-      <!-- 2. Header: greeting, date, version badge, update status, Check for updates -->
-      <Grid Margin="0,0,0,20">
+      <Grid Margin="0,0,0,22">
         <Grid.ColumnDefinitions>
           <ColumnDefinition />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <StackPanel>
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Text="{Binding Greeting}" Style="{StaticResource Text.PageTitle}" VerticalAlignment="Bottom" />
-            <Border Style="{StaticResource Badge.Accent}" Margin="12,4,0,0" VerticalAlignment="Center"
-                    Padding="8,2,8,3" CornerRadius="6" ToolTip="You are using this version of VetPOS">
-              <TextBlock Text="{x:Static app:App.VersionLabel}"
-                         FontSize="{StaticResource FontSize.Caption}" FontWeight="SemiBold" />
-            </Border>
-          </StackPanel>
-          <TextBlock Style="{StaticResource Text.Secondary}" Margin="0,4,0,0">
-            <Run Text="{Binding TodayText, Mode=OneWay}" />
-            <Run Text=". Pick a section below, or press its shortcut key." />
-          </TextBlock>
+          <TextBlock Text="Overview" Style="{StaticResource Text.PageTitle}" />
+          <TextBlock Text="{Binding TodayText}" Style="{StaticResource Text.Secondary}" Margin="0,4,0,0" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock Text="{Binding UpdateStatus, Mode=OneWay}" Style="{StaticResource Text.Secondary}"
-                     VerticalAlignment="Center" Margin="0,0,14,0" />
-          <Button Content="Check for updates" ds:Ds.Icon="&#xE8CF;"
-                  Command="{Binding CheckUpdatesCommand}" VerticalAlignment="Center" />
-        </StackPanel>
+        <Button Grid.Column="1" Style="{StaticResource Button.Primary}" Content="New sale" ToolTip="Billing (Ctrl+1)"
+                Tag="Billing" Click="QuickAction_Click" VerticalAlignment="Center" MinWidth="112" />
       </Grid>
 
-      <!-- 3. Quick start strip: the one bold moment on the page -->
-      <Border CornerRadius="{StaticResource Radius.Card}"
-              Background="{DynamicResource Brush.AccentSoft}"
-              BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1"
-              Padding="24,20" Margin="0,0,0,20">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
-            <TextBlock Text="Ready to make a sale?" FontSize="22" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Brush.AccentText}" />
-            <TextBlock Text="Start a new bill now. Add new stock or look up a product in one click."
-                       Foreground="{DynamicResource Brush.AccentText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-          </StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Style="{StaticResource Button.Primary}" Content="Start a new bill"
-                    Tag="Billing" Click="QuickAction_Click"
-                    Height="44" Padding="22,0" FontSize="15" />
-            <Button Content="Add stock" ds:Ds.Icon="&#xE710;"
-                    Tag="Stock in" Click="QuickAction_Click" Height="44" Margin="10,0,0,0" />
-            <Button Content="Find a product" ds:Ds.Icon="&#xE721;"
-                    Tag="Products" Click="QuickAction_Click" Height="44" Margin="10,0,0,0" />
-          </StackPanel>
-        </Grid>
-      </Border>
-
-      <!-- 4. Today strip: stays hidden until the numbers are filled in (see HomeViewModel) -->
-      <Grid Margin="0,0,0,20"
-            Visibility="{Binding BillsToday, Converter={StaticResource NullToCollapsed}}">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition />
-          <ColumnDefinition />
-          <ColumnDefinition />
-        </Grid.ColumnDefinitions>
-        <Border Style="{StaticResource Home.StatTile}" Margin="0,0,8,0">
+      <UniformGrid Columns="3" Margin="0,0,-10,24">
+        <Border Style="{StaticResource Metric}">
           <StackPanel>
-            <TextBlock Text="Bills today" Style="{StaticResource Text.Secondary}" />
-            <TextBlock Text="{Binding BillsToday}" FontSize="28" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Brush.Text}" Margin="0,4,0,0" />
+            <TextBlock Text="Sales today" Style="{StaticResource Text.Caption}" />
+            <TextBlock Text="{Binding SalesToday, TargetNullValue=—}" Style="{StaticResource MetricValue}" />
           </StackPanel>
         </Border>
-        <Border Grid.Column="1" Style="{StaticResource Home.StatTile}" Margin="4,0">
+        <Border Style="{StaticResource Metric}">
           <StackPanel>
-            <TextBlock Text="Sales today" Style="{StaticResource Text.Secondary}" />
-            <TextBlock Text="{Binding SalesToday}" FontSize="28" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Brush.Text}" Margin="0,4,0,0" />
+            <TextBlock Text="Bills today" Style="{StaticResource Text.Caption}" />
+            <TextBlock Text="{Binding BillsToday, TargetNullValue=—}" Style="{StaticResource MetricValue}" />
           </StackPanel>
         </Border>
-        <Border Grid.Column="2" Style="{StaticResource Home.StatTile}" Margin="8,0,0,0">
+        <Border Style="{StaticResource Metric}">
           <StackPanel>
-            <TextBlock Text="Items running low" Style="{StaticResource Text.Secondary}" />
-            <TextBlock Text="{Binding LowStock}" FontSize="28" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Brush.Text}" Margin="0,4,0,0" />
+            <TextBlock Text="Low stock" Style="{StaticResource Text.Caption}" />
+            <TextBlock Text="{Binding LowStock, TargetNullValue=—}" Style="{StaticResource MetricValue}" />
           </StackPanel>
         </Border>
-      </Grid>
+      </UniformGrid>
 
-      <!-- 5. All sections -->
-      <TextBlock Text="Your sections" Style="{StaticResource Home.SectionTitle}" />
-      <TextBlock Text="Click a card, or use the arrow keys and press Enter."
-                 Style="{StaticResource Text.Secondary}" Margin="0,2,0,8" />
-
-      <ItemsControl x:Name="CardList" Focusable="False">
+      <TextBlock Text="{Binding LoadError}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                 Visibility="{Binding LoadError, Converter={StaticResource NullToCollapsed}}" />
+      <TextBlock Text="Workspace" Style="{StaticResource Text.Title}" Margin="0,0,0,10" />
+      <ItemsControl x:Name="CardList" Margin="0,0,-10,14">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <UniformGrid Margin="-8,0"
-                         Columns="{Binding ColumnCount, RelativeSource={RelativeSource AncestorType=local:HomeView}}" />
+            <UniformGrid Columns="{Binding ColumnCount, RelativeSource={RelativeSource AncestorType=local:HomeView}}" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-          <DataTemplate DataType="{x:Type shell:NavItem}">
-            <Button Style="{StaticResource HomeCard}"
-                    Content="{Binding Icon}"
-                    Tag="{Binding Tint}"
-                    ToolTip="{Binding Title}"
-                    ds:Ds.KeyHint="{Binding Shortcut}"
-                    local:HomeView.Description="{Binding Title, Converter={StaticResource NavDesc}}"
-                    Command="{Binding DataContext.OpenCommand,
-                              RelativeSource={RelativeSource AncestorType=local:HomeView}}"
-                    CommandParameter="{Binding}"
-                    Loaded="Card_Loaded" />
+          <DataTemplate>
+            <Button Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=local:HomeView}}"
+                    CommandParameter="{Binding}" Margin="0,0,10,10" MinHeight="68"
+                    AutomationProperties.Name="{Binding Title}" ToolTip="{Binding Shortcut}">
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <Border x:Name="Surface" CornerRadius="{StaticResource Radius.Card}" Padding="13,9"
+                          Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1">
+                    <ContentPresenter />
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Surface" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                    </Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True">
+                      <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+              <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="34" />
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="17"
+                           Foreground="{DynamicResource Brush.AccentText}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Margin="0,0,6,0">
+                  <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Title, Converter={StaticResource NavDesc}}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding Shortcut}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+              </Grid>
+            </Button>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
 
-      <!-- Empty state: shown only when no sections are available -->
-      <TextBlock Text="No sections are available right now. Close VetPOS and open it again, or ask the shop owner to check your access."
-                 TextWrapping="Wrap" Margin="0,8,0,0">
-        <TextBlock.Style>
-          <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Secondary}">
-            <Setter Property="Visibility" Value="Visible" />
-            <Style.Triggers>
-              <DataTrigger Binding="{Binding HasItems, ElementName=CardList}" Value="True">
-                <Setter Property="Visibility" Value="Collapsed" />
-              </DataTrigger>
-            </Style.Triggers>
-          </Style>
-        </TextBlock.Style>
-      </TextBlock>
-
-      <!-- 6. Bottom row: tip of the day + good to know -->
-      <Grid Margin="0,20,0,8">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition />
-          <ColumnDefinition />
-        </Grid.ColumnDefinitions>
-
-        <Border Style="{StaticResource Home.StatTile}" Margin="0,0,8,0">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#xE946;" FontFamily="{StaticResource Font.Icons}" FontSize="18"
-                         Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <TextBlock Text="Tip for today" Style="{StaticResource Home.SectionTitle}" />
-            </StackPanel>
-            <TextBlock Text="{Binding TipText}" Style="{StaticResource Text.Secondary}"
-                       TextWrapping="Wrap" Margin="0,8,0,0" />
-          </StackPanel>
-        </Border>
-
-        <Border Grid.Column="1" Style="{StaticResource Home.StatTile}" Margin="8,0,0,0">
-          <StackPanel>
-            <TextBlock Text="Good to know" Style="{StaticResource Home.SectionTitle}" />
-            <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,8,0,0"
-                       Text="VetPOS keeps working without internet. It checks for updates the next time you are online." />
-            <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0"
-                       Text="Your data is backed up on this computer automatically. Keep a copy on a USB drive too." />
-            <TextBlock Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,6,0,0"
-                       Text="Something looks wrong? Tell the developer what you were doing." />
-          </StackPanel>
-        </Border>
-      </Grid>
-
+      <DockPanel LastChildFill="True" Margin="0,4,0,0">
+        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" Command="{Binding CheckUpdatesCommand}" Content="Check for updates" />
+        <TextBlock Text="{Binding Updates.Status}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" VerticalAlignment="Center" />
+      </DockPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

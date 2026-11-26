@@ -63,16 +63,16 @@ public static class ShopIcon
     }
 
     /// <summary>Points every VetPOS shortcut at <paramref name="icoPath"/> (null = the program's own icon).</summary>
-    public static void UpdateShortcuts(string? icoPath)
+    public static void UpdateShortcuts(string? icoPath, bool refreshIcon = false)
     {
         var exe = Environment.ProcessPath;
         if (exe is null || !OperatingSystem.IsWindows()) return;
         var folders = new[]
         {
-            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
-            Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),
+            (Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), SearchOption.TopDirectoryOnly),
+            (Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), SearchOption.TopDirectoryOnly),
+            (Environment.GetFolderPath(Environment.SpecialFolder.Programs), SearchOption.AllDirectories),
+            (Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), SearchOption.TopDirectoryOnly),
         };
         var shellType = Type.GetTypeFromProgID("WScript.Shell");
         if (shellType is null) return;
@@ -81,8 +81,8 @@ public static class ShopIcon
         try
         {
             shell = Activator.CreateInstance(shellType);
-            foreach (var folder in folders.Where(Directory.Exists).Distinct())
-            foreach (var link in Directory.EnumerateFiles(folder, "*.lnk", SearchOption.AllDirectories))
+            foreach (var (folder, scope) in folders.Where(f => Directory.Exists(f.Item1)).Distinct())
+            foreach (var link in Directory.EnumerateFiles(folder, "*.lnk", scope))
             {
                 try
                 {
@@ -110,7 +110,7 @@ public static class ShopIcon
         {
             if (shell is not null) Marshal.FinalReleaseComObject(shell);
         }
-        if (changed) SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); // SHCNE_ASSOCCHANGED: refresh icons
+        if (changed || refreshIcon) SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); // SHCNE_ASSOCCHANGED: refresh icons
     }
 
     [DllImport("shell32.dll")]

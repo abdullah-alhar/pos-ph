@@ -89,11 +89,7 @@ public sealed class ThemeManager
             ["Brush.Selection"] = new SolidColorBrush(main) { Opacity = 0.25 },
             ["SystemAccentColor"] = main,
         };
-        var brand = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
-        brand.GradientStops.Add(new GradientStop(Mix(main, white, 0.10), 0));
-        brand.GradientStops.Add(new GradientStop(main, 0.45));
-        brand.GradientStops.Add(new GradientStop(side, 1));
-        brand.Freeze();
+        var brand = B(side);
         d["Brush.Brand"] = brand;
         return d;
     }

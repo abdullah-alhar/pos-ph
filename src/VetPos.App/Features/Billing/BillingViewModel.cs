@@ -143,7 +143,9 @@ public sealed partial class BillingViewModel : PageViewModel
 
     private BillCart Cart() => new(_clientId, Lines.Select(l => l.ToBillLine()).ToList(), BillDiscount);
 
-    public async Task SaveDraftNowAsync()
+    public Task SaveDraftNowAsync() => SaveDraftNowAsync(requireSuccess: false);
+
+    public async Task SaveDraftNowAsync(bool requireSuccess)
     {
         if (!Ui.Session.IsSignedIn) return;
         try
@@ -153,6 +155,7 @@ public sealed partial class BillingViewModel : PageViewModel
         catch (Exception ex)
         {
             Ui.Logger.LogError(ex, "Could not save the bill draft");
+            if (requireSuccess) throw;
         }
     }
 
@@ -180,10 +183,14 @@ public sealed partial class BillingViewModel : PageViewModel
 
     // ───────── Scan & search ─────────
 
+    private CancellationTokenSource? _suggestionSearch;
+
     partial void OnSearchChanged(string value)
     {
         SearchError = null;
         _searchTimer.Stop();
+        _suggestionSearch?.Cancel();
+        ShowSuggestions = false;
         var (_, text) = SplitQty(value);
         // A scanner types digits very fast then Enter: no list for long numbers.
         if (text.Length == 0)
@@ -198,11 +205,25 @@ public sealed partial class BillingViewModel : PageViewModel
     {
         var (_, text) = SplitQty(Search);
         if (text.Length == 0) return;
-        var rows = await _catalog.SearchAsync(text, limit: 30);
-        Suggestions.Clear();
-        foreach (var r in rows) Suggestions.Add(r);
-        Suggestion = Suggestions.FirstOrDefault();
-        ShowSuggestions = Suggestions.Count > 0;
+        using var query = new CancellationTokenSource();
+        _suggestionSearch?.Cancel();
+        _suggestionSearch = query;
+        try
+        {
+            var rows = await Task.Run(() => _catalog.SearchAsync(text, limit: 30, ct: query.Token), query.Token);
+            if (query.IsCancellationRequested) return;
+            Suggestions.Clear();
+            foreach (var r in rows) Suggestions.Add(r);
+            Suggestion = Suggestions.FirstOrDefault();
+            ShowSuggestions = Suggestions.Count > 0;
+        }
+        catch (OperationCanceledException) when (query.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (_suggestionSearch == query) _suggestionSearch = null;
+        }
     }
 
     public void MoveSuggestion(int delta)
@@ -243,10 +264,10 @@ public sealed partial class BillingViewModel : PageViewModel
         {
             int? id = null;
             if (ShowSuggestions && Suggestion is not null) id = Suggestion.Id;
-            id ??= await _catalog.FindIdByBarcodeAsync(text);
+            id ??= await Task.Run(() => _catalog.FindIdByBarcodeAsync(text));
             if (id is null)
             {
-                var rows = await _catalog.SearchAsync(text, limit: 30);
+                var rows = await Task.Run(() => _catalog.SearchAsync(text, limit: 30));
                 if (rows.Count == 1) id = rows[0].Id;
                 else if (rows.Count > 1)
                 {

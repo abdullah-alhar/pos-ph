@@ -22,7 +22,6 @@
       <Grid DockPanel.Dock="Top" Margin="0,0,0,18">
         <StackPanel>
           <TextBlock Text="Products" Style="{StaticResource Text.PageTitle}" />
-          <TextBlock Text="Keep food, medicine and extras ready for sale." Style="{StaticResource Text.Secondary}" FontSize="14" Margin="0,4,0,0" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Command="{Binding AddWithAiCommand}" Margin="0,0,8,0" ToolTip="Opens the AI chat: describe or paste products in any words, check the card, Confirm">
@@ -35,28 +34,13 @@
         </StackPanel>
       </Grid>
 
-      <!-- Filters on the left (no tabs across the top) -->
-      <StackPanel DockPanel.Dock="Left" Width="200" Margin="0,0,20,0">
-        <TextBlock Text="Show" Style="{StaticResource Text.Overline}" Margin="12,0,0,8" />
-        <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE8FD;" Content="All products" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
-        <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE7BA;" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=LowStock}">
-          <DockPanel Width="130">
-            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Warning}" Visibility="{Binding LowCount, Converter={StaticResource PositiveToVisible}}">
-              <TextBlock Text="{Binding LowCount}" />
-            </Border>
-            <TextBlock Text="Low stock" VerticalAlignment="Center" />
-          </DockPanel>
+      <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+        <RadioButton Style="{StaticResource Segment}" Content="All products" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
+        <RadioButton Style="{StaticResource Segment}" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=LowStock}">
+          <TextBlock><Run Text="Low stock (" /><Run Text="{Binding LowCount, Mode=OneWay}" /><Run Text=")" /></TextBlock>
         </RadioButton>
-        <RadioButton Style="{StaticResource SideTab}" ds:Ds.Icon="&#xE7E8;" Content="Switched off" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Inactive}" />
-        <Border Style="{StaticResource Divider}" Margin="8,16" />
-        <TextBlock Text="Tools" Style="{StaticResource Text.Overline}" Margin="12,0,0,8" />
-        <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Command="{Binding AddWithAiCommand}" Padding="12,0" MinHeight="40">
-          <StackPanel Orientation="Horizontal">
-            <Path Style="{StaticResource AiSpark}" Width="15" Height="15" />
-            <TextBlock Text="Add many with AI" Margin="12,0,0,0" />
-          </StackPanel>
-        </Button>
-      </StackPanel>
+        <RadioButton Style="{StaticResource Segment}" Content="Switched off" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Inactive}" />
+      </WrapPanel>
 
       <TextBox DockPanel.Dock="Top" Style="{StaticResource Input.Search}" ds:Ds.Icon="&#xE721;" ds:Ds.Placeholder="Search by name or barcode"
                Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14" />
@@ -68,11 +52,11 @@
             <Border DockPanel.Dock="Top" Style="{StaticResource TableHeader}" CornerRadius="14,14,0,0">
               <Grid>
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="2*" />
                   <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="150" />
-                  <ColumnDefinition Width="110" />
-                  <ColumnDefinition Width="90" />
-                  <ColumnDefinition Width="150" />
+                  <ColumnDefinition Width="82" />
+                  <ColumnDefinition Width="53" />
+                  <ColumnDefinition Width="112" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Product" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1" Text="Category" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -86,19 +70,19 @@
                 <DataTemplate DataType="{x:Type data:ProductRow}">
                   <Grid MinHeight="50" Margin="0,4,0,4">
                     <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="2*" />
                       <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="150" />
-                      <ColumnDefinition Width="110" />
-                      <ColumnDefinition Width="90" />
-                      <ColumnDefinition Width="150" />
+                      <ColumnDefinition Width="82" />
+                      <ColumnDefinition Width="53" />
+                      <ColumnDefinition Width="112" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16" />
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
                       <TextBlock Text="{Binding Barcode}" Style="{StaticResource Text.Caption}" FontSize="13" FontFamily="{StaticResource Font.Mono}" Margin="0,2,0,0" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding Category}" Style="{StaticResource Text.Secondary}" FontSize="15" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding SellingPrice, Converter={StaticResource Money}}" Style="{StaticResource Text.Money}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3" Text="{Binding StockQty}" Style="{StaticResource Text.MoneyStrong}" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Category}" Style="{StaticResource Text.Secondary}" FontSize="14" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding SellingPrice, Converter={StaticResource Money}}" Style="{StaticResource Text.Money}" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    <TextBlock Grid.Column="3" Text="{Binding StockQty}" Style="{StaticResource Text.MoneyStrong}" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     <WrapPanel Grid.Column="4" Margin="16,0,0,0" VerticalAlignment="Center">
                       <Border Style="{StaticResource Badge}" Visibility="{Binding IsOut, Converter={StaticResource BoolToVisibility}}" Margin="0,0,4,0"><TextBlock Text="Out of stock" /></Border>
                       <Border Style="{StaticResource Badge.Warning}" Margin="0,0,4,0">
@@ -143,7 +127,7 @@
     </DockPanel>
 
     <!-- ───────── Editor panel ───────── -->
-    <Border Grid.Column="1" Width="400" Margin="20,0,0,0" Style="{StaticResource Card}" Padding="0"
+    <Border Grid.Column="1" Width="340" Margin="12,0,0,0" Style="{StaticResource Card}" Padding="0"
             Visibility="{Binding Editor, Converter={StaticResource NullToCollapsed}}">
       <DockPanel DataContext="{Binding Editor}">
         <Grid DockPanel.Dock="Top" Margin="20,18,12,8">

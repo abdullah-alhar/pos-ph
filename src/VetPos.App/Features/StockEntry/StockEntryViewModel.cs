@@ -115,9 +115,13 @@ public sealed partial class StockEntryViewModel : PageViewModel
         foreach (var r in await _entry.ListAsync(30)) Recent.Add(r);
     });
 
+    private int _searchVersion;
+
     partial void OnSearchChanged(string value)
     {
+        _searchVersion++;
         SearchError = null;
+        ShowSuggestions = false;
         _searchTimer.Stop();
         if (value.Trim().Length == 0) { ShowSuggestions = false; return; }
         _searchTimer.Start();
@@ -125,7 +129,10 @@ public sealed partial class StockEntryViewModel : PageViewModel
 
     private async Task SearchNowAsync()
     {
-        var rows = await _catalog.SearchAsync(Search, limit: 20);
+        var search = Search;
+        var version = _searchVersion;
+        var rows = await Task.Run(() => _catalog.SearchAsync(search, limit: 20));
+        if (version != _searchVersion) return;
         Suggestions.Clear();
         foreach (var r in rows) Suggestions.Add(r);
         Suggestion = Suggestions.FirstOrDefault();
@@ -147,10 +154,10 @@ public sealed partial class StockEntryViewModel : PageViewModel
         await Ui.Run(async () =>
         {
             var id = ShowSuggestions ? Suggestion?.Id : null;
-            id ??= await _catalog.FindIdByBarcodeAsync(text);
+            id ??= await Task.Run(() => _catalog.FindIdByBarcodeAsync(text));
             if (id is null)
             {
-                var rows = await _catalog.SearchAsync(text, limit: 20);
+                var rows = await Task.Run(() => _catalog.SearchAsync(text, limit: 20));
                 if (rows.Count == 1) id = rows[0].Id;
             }
             if (id is null) { SearchError = $"No product matches “{text}”. Add it in Products first."; return; }

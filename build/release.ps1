@@ -14,6 +14,6 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # Ship no debug symbols (harder to reverse-engineer; the shop only gets the compiled app).
 Get-ChildItem publish\win-x64 -Recurse -Filter *.pdb | Remove-Item -Force
 dotnet vpk pack -u VetPOS.App -v $Version -p publish\win-x64 -e VetPOS.exe -o publish\releases `
-  --packTitle "VetPOS" --packAuthors "VetPOS" -i src\VetPos.App\Assets\vetpos.ico --runtime win-x64 --framework vcredist143-x64 --splashImage build\splash.png
+  --packTitle "VetPOS" --packAuthors "VetPOS" -i src\VetPos.App\Assets\vetpos.ico --runtime win-x64 --framework vcredist143-x64 --splashImage src\VetPos.App\Assets\vetpos-256.png --splashProgressColor "#FFFFFF"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Done: publish\releases" -ForegroundColor Green

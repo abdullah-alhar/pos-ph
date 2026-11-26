@@ -1,16 +1,16 @@
-<!-- The palette ("VetPOS Figma design"): white surfaces, Figma teal accent (#0F8B8D), clean borders (#C9D3DF),
-     and crisp dark text (#0F1B2D). Every colour in the app comes from here; screens never use hardcoded hex values. -->
+<!-- The palette ("VetPOS Figma design"): white surfaces, Figma teal accent (#0F8B8D), clean borders (#D3DEDF),
+     and crisp dark text (#15292F). Every colour in the app comes from here; screens never use hardcoded hex values. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Color x:Key="Color.Background">#F3F6FB</Color>
+  <Color x:Key="Color.Background">#F2F5F5</Color>
   <Color x:Key="Color.Surface">#FFFFFF</Color>
-  <Color x:Key="Color.SurfaceSubtle">#E4E9F0</Color>
-  <Color x:Key="Color.SurfaceSunken">#F3F6FB</Color>
-  <Color x:Key="Color.Line">#C9D3DF</Color>
-  <Color x:Key="Color.LineStrong">#9AAABF</Color>
-  <Color x:Key="Color.Text">#0F1B2D</Color>
-  <Color x:Key="Color.TextSecondary">#5B6B7F</Color>
-  <Color x:Key="Color.TextTertiary">#8291A5</Color>
+  <Color x:Key="Color.SurfaceSubtle">#E9EEEE</Color>
+  <Color x:Key="Color.SurfaceSunken">#F2F5F5</Color>
+  <Color x:Key="Color.Line">#D3DEDF</Color>
+  <Color x:Key="Color.LineStrong">#97ABAE</Color>
+  <Color x:Key="Color.Text">#15292F</Color>
+  <Color x:Key="Color.TextSecondary">#4E626B</Color>
+  <Color x:Key="Color.TextTertiary">#617680</Color>
   <Color x:Key="Color.Accent">#0F8B8D</Color>
   <Color x:Key="Color.AccentHover">#0B5E60</Color>
   <Color x:Key="Color.AccentPressed">#08484A</Color>
@@ -26,14 +26,14 @@
   <Color x:Key="Color.Scrim">#66101F1E</Color>
   <Color x:Key="Color.Sidebar">#FFFFFF</Color>
   <Color x:Key="Color.SidebarAccent">#E3F3F2</Color>
-  <Color x:Key="Color.SidebarText">#0F1B2D</Color>
-  <Color x:Key="Color.SidebarMuted">#5B6B7F</Color>
-  <Color x:Key="Color.SidebarLine">#E4E9F0</Color>
+  <Color x:Key="Color.SidebarText">#15292F</Color>
+  <Color x:Key="Color.SidebarMuted">#4E626B</Color>
+  <Color x:Key="Color.SidebarLine">#E9EEEE</Color>
   <Color x:Key="Color.SidebarPrimary">#0F8B8D</Color>
   <Color x:Key="Color.Marigold">#0F8B8D</Color>
   <Color x:Key="Color.MarigoldHover">#0B5E60</Color>
   <Color x:Key="Color.OnMarigold">#FFFFFF</Color>
-  <Color x:Key="Color.KeyCap">#E4E9F0</Color>
+  <Color x:Key="Color.KeyCap">#E9EEEE</Color>
   <SolidColorBrush x:Key="Brush.Background" Color="{StaticResource Color.Background}" />
   <SolidColorBrush x:Key="Brush.Surface" Color="{StaticResource Color.Surface}" />
   <SolidColorBrush x:Key="Brush.SurfaceSubtle" Color="{StaticResource Color.SurfaceSubtle}" />

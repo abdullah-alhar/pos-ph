@@ -84,10 +84,14 @@ public sealed partial class RootViewModel(IServiceProvider services, AuthService
         IsLocked = true;
     }
 
+    internal Task SaveCurrentDraftAsync(bool requireSuccess = false) =>
+        _shell?.SaveCurrentDraftAsync(requireSuccess) ?? Task.CompletedTask;
+
     public async Task LogoutAsync()
     {
         var name = session.User?.Username;
-        if (_shell?.Page<Features.Billing.BillingViewModel>() is { } billing) await billing.SaveDraftNowAsync();
+        await SaveCurrentDraftAsync();
+        _shell?.EndSession();
         session.User = null;
         _shell = null;
         IsLocked = false;

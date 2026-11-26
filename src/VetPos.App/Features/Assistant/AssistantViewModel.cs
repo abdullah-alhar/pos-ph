@@ -34,7 +34,9 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
         card.State = "busy";
         try
         {
-            card.Result = await actions.ExecuteAsync(card.Action, Ui.Session.Actor);
+            var actor = Ui.Session.Actor;
+            card.Result = await Task.Run(() => actions.ExecuteAsync(card.Action, actor));
+            if (!Ui.Session.IsSignedIn || Ui.Session.Actor != actor) return;
             card.State = "done";
             Ui.Toasts.Show(card.Result);
             ChangesSaved?.Invoke(this, EventArgs.Empty);
@@ -192,7 +194,7 @@ public sealed partial class AssistantViewModel(Ui ui, AssistantService assistant
         {
             Offline = await assistant.ProblemAsync(ct);
             ct.ThrowIfCancellationRequested();
-            var history = Messages.Where(m => !m.IsError).Select(m => new ChatTurn(m.FromUser, m.Text)).ToList();
+            var history = Messages.Where(m => !m.IsError).TakeLast(10).Select(m => new ChatTurn(m.FromUser, m.Text)).ToList();
             pending = new ChatMessage(true, question);
             Messages.Add(pending);
             OnPropertyChanged(nameof(IsEmpty));

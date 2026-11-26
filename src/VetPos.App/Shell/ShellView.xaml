@@ -83,7 +83,7 @@
           <Setter Property="Template">
             <Setter.Value>
               <ControlTemplate TargetType="Button">
-                <Border x:Name="Root" MinHeight="50" Margin="10,2" Padding="12,0" CornerRadius="12" Background="Transparent">
+                <Border x:Name="Root" MinHeight="38" Margin="8,2" Padding="10,0" CornerRadius="7" Background="Transparent">
                   <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
                 </Border>
                 <ControlTemplate.Triggers>
@@ -113,7 +113,7 @@
         <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding GoHomeCommand}"
                 ToolTip="Home (Ctrl+0)" AutomationProperties.Name="Home" Margin="0,10,0,6">
           <StackPanel Orientation="Horizontal">
-            <Border Width="48" Height="48" CornerRadius="12" Background="White" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1" Padding="5">
+            <Border Width="42" Height="42" CornerRadius="8" Background="White" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="1" Padding="5">
               <Grid>
                 <Image Source="/VetPOS;component/Assets/vetpos-256.png" Visibility="{Binding ShopLogo, Converter={StaticResource NullToVisible}}" />
                 <Image Source="{Binding ShopLogo}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
@@ -124,7 +124,7 @@
         </Button>
         <Button DockPanel.Dock="Top" Style="{StaticResource RailButton}" Command="{Binding OpenPaletteCommand}" ToolTip="Find products, bills and screens (Ctrl+K)" AutomationProperties.Name="Search" Margin="0,0,0,6">
           <StackPanel Orientation="Horizontal">
-            <TextBlock Text="&#xE721;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock Text="&#xE721;" FontFamily="{StaticResource Font.Icons}" FontSize="17" Width="24" TextAlignment="Center" VerticalAlignment="Center" />
             <TextBlock Text="Search" Style="{StaticResource RailLabel}" />
           </StackPanel>
         </Button>
@@ -132,10 +132,19 @@
         <!-- Bottom: notifications, AI, me, expand -->
         <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,12">
           <Border Height="1" Background="{DynamicResource Brush.SidebarLine}" Margin="16,0,16,8" />
+          <Button Style="{StaticResource RailButton}" Command="{Binding Updates.ShowUpdateProgressCommand}"
+                  ToolTip="{Binding Updates.Status}" AutomationProperties.Name="{Binding Updates.Status}"
+                  Visibility="{Binding Updates.ShowBackgroundProgress, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE896;" FontFamily="{StaticResource Font.Icons}" FontSize="17" Width="24" TextAlignment="Center"
+                         Foreground="{DynamicResource Brush.AccentText}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Updates.BackgroundProgressLabel}" Style="{StaticResource RailLabel}" />
+            </StackPanel>
+          </Button>
           <Button Style="{StaticResource RailButton}" Command="{Binding ToggleNoticesCommand}" ToolTip="Notifications">
             <Grid>
               <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xEA8F;" FontFamily="{StaticResource Font.Icons}" FontSize="22" Width="26" TextAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock Text="&#xEA8F;" FontFamily="{StaticResource Font.Icons}" FontSize="17" Width="24" TextAlignment="Center" VerticalAlignment="Center" />
                 <TextBlock Text="Notifications" Style="{StaticResource RailLabel}" />
               </StackPanel>
               <Border CornerRadius="8" MinWidth="16" Height="16" Padding="4,0" Background="{DynamicResource Brush.Danger}" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -201,8 +210,8 @@
                 <Setter.Value>
                   <ControlTemplate TargetType="ListBoxItem">
                     <Grid Margin="0,3">
-                      <Border x:Name="Mark" Width="4" Height="30" CornerRadius="0,3,3,0" HorizontalAlignment="Left" Background="{Binding Tint}" Visibility="Hidden" />
-                      <Border x:Name="Root" Margin="10,0" CornerRadius="14" Background="Transparent">
+                      <Border x:Name="Mark" Width="4" Height="30" CornerRadius="0,2,2,0" HorizontalAlignment="Left" Background="{DynamicResource Brush.Accent}" Visibility="Hidden" />
+                      <Border x:Name="Root" Margin="8,0" CornerRadius="7" Background="Transparent">
                         <ContentPresenter />
                       </Border>
                     </Grid>
@@ -212,7 +221,7 @@
                         <Setter Property="Foreground" Value="{DynamicResource Brush.SidebarText}" />
                       </Trigger>
                       <Trigger Property="IsSelected" Value="True">
-                        <Setter TargetName="Root" Property="Background" Value="{Binding TintSoft}" />
+                        <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.SidebarAccent}" />
                         <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
                         <Setter Property="Foreground" Value="{DynamicResource Brush.SidebarText}" />
                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -226,24 +235,18 @@
           <ListBox.ItemTemplate>
             <DataTemplate DataType="{x:Type shell:NavItem}">
               <Grid ToolTip="{Binding Shortcut}">
-                <!-- Narrow: a coloured icon tile over a short word (like apps on a phone) -->
-                <StackPanel x:Name="Narrow" Margin="2,8,2,8" HorizontalAlignment="Center">
-                  <Border x:Name="Tile" Width="46" Height="46" CornerRadius="13" Background="{Binding TintSoft}" HorizontalAlignment="Center">
-                    <TextBlock x:Name="Icon" Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="24" Foreground="{Binding Tint}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  </Border>
-                  <TextBlock Text="{Binding ShortTitle}" FontSize="13" Margin="0,5,0,0" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
+                <StackPanel x:Name="Narrow" Margin="2,5" HorizontalAlignment="Center">
+                  <TextBlock Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="18"
+                             HorizontalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
+                  <TextBlock Text="{Binding ShortTitle}" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center"
                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                 </StackPanel>
-                <!-- Wide: tile, name, shortcut -->
-                <DockPanel x:Name="Wide" Margin="8,7" Visibility="Collapsed">
-                  <TextBlock DockPanel.Dock="Right" Text="{Binding Shortcut}" FontSize="13" Opacity="0.5" VerticalAlignment="Center"
+                <DockPanel x:Name="Wide" Margin="12,9" Visibility="Collapsed">
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding Shortcut}" FontSize="12" Margin="5,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.SidebarMuted}" />
+                  <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="17" Width="26" VerticalAlignment="Center"
                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
-                  <Border x:Name="WideTile" Width="40" Height="40" CornerRadius="11" Background="{Binding TintSoft}">
-                    <TextBlock x:Name="WideIcon" Text="{Binding Icon}" FontFamily="{StaticResource Font.Icons}" FontSize="21" Foreground="{Binding Tint}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  </Border>
-                  <TextBlock Text="{Binding Title}" FontSize="17" Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                  <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                 </DockPanel>
               </Grid>
@@ -251,13 +254,6 @@
                 <DataTrigger Binding="{Binding DataContext.Collapsed, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="False">
                   <Setter TargetName="Narrow" Property="Visibility" Value="Collapsed" />
                   <Setter TargetName="Wide" Property="Visibility" Value="Visible" />
-                </DataTrigger>
-                <!-- The open page: solid tile, white icon -->
-                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                  <Setter TargetName="Tile" Property="Background" Value="{Binding Tint}" />
-                  <Setter TargetName="Icon" Property="Foreground" Value="White" />
-                  <Setter TargetName="WideTile" Property="Background" Value="{Binding Tint}" />
-                  <Setter TargetName="WideIcon" Property="Foreground" Value="White" />
                 </DataTrigger>
               </DataTemplate.Triggers>
             </DataTemplate>
@@ -267,7 +263,45 @@
     </Border>
 
     <!-- ───────── Page ───────── -->
-    <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" Focusable="False" />
+    <DockPanel Grid.Column="1">
+      <Border DockPanel.Dock="Top" Padding="14,8" Background="{DynamicResource Brush.Surface}"
+              BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1"
+              Visibility="{Binding Updates.ShowProgress, Converter={StaticResource BoolToVisibility}}">
+        <ContentControl Content="{Binding Updates}" ContentTemplate="{StaticResource ActiveUpdateProgress}" Focusable="False" />
+      </Border>
+      <Border DockPanel.Dock="Top" Padding="14,6" Background="{DynamicResource Brush.Surface}"
+              BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                  <Condition Binding="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}" Value="Visible" />
+                  <Condition Binding="{Binding Updates.Dismissed}" Value="False" />
+                  <Condition Binding="{Binding Updates.IsWorking}" Value="False" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Visible" />
+              </MultiDataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" IsEnabled="{Binding Updates.IsRestarting, Converter={StaticResource Not}}">
+            <Button Style="{StaticResource Button.Subtle}" Content="Later" Command="{Binding UpdateLaterCommand}" />
+            <Button Style="{StaticResource Button.Primary}" Content="Restart now" Command="{Binding RestartToUpdateCommand}" Margin="6,0,0,0" />
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+            <TextBlock Text="{Binding Updates.Status}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite" />
+            <ProgressBar Height="4" Margin="0,6,0,0" IsIndeterminate="True"
+                         Visibility="{Binding Updates.IsRestarting, Converter={StaticResource BoolToVisibility}}" />
+          </StackPanel>
+        </DockPanel>
+      </Border>
+      <ContentControl Content="{Binding CurrentPage}" Focusable="False"
+                      IsEnabled="{Binding Updates.IsRestarting, Converter={StaticResource Not}}" />
+    </DockPanel>
 
     <!-- ───────── Notifications panel ───────── -->
     <Grid Grid.ColumnSpan="3" Visibility="{Binding IsNoticesOpen, Converter={StaticResource BoolToVisibility}}">
@@ -328,48 +362,25 @@
           </StackPanel>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Button Style="{StaticResource Button.Subtle}" Width="36" MinHeight="36" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="14" Content="&#xE710;"
-                    ToolTip="New chat" Command="{Binding Assistant.ClearCommand}" Focusable="False" />
+                    ToolTip="New chat" Command="{Binding DrawerAssistant.ClearCommand}" Focusable="False" />
             <Button Style="{StaticResource Button.Subtle}" Width="36" MinHeight="36" Padding="0" FontFamily="{StaticResource Font.Icons}" FontSize="13" Content="&#xE711;"
                     ToolTip="Close (Esc or Ctrl+J)" Command="{Binding ToggleAssistantCommand}" Focusable="False" Margin="2,0,0,0" />
           </StackPanel>
         </Grid>
-        <assistant:AssistantPanelView DataContext="{Binding Assistant}" />
+        <ContentControl Content="{Binding DrawerAssistant}">
+          <ContentControl.Style>
+            <Style TargetType="ContentControl">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding DrawerAssistant, Converter={StaticResource NullToCollapsed}}" Value="Visible">
+                  <Setter Property="ContentTemplate">
+                    <Setter.Value><DataTemplate><assistant:AssistantPanelView /></DataTemplate></Setter.Value>
+                  </Setter>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ContentControl.Style>
+        </ContentControl>
       </DockPanel>
-    </Border>
-
-    <!-- ───────── Update ready (bottom left, never blocks work) ───────── -->
-    <Border Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20,0,0,20" Width="330" CornerRadius="12" Padding="16,14"
-            Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1.5">
-      <Border.Style>
-        <Style TargetType="Border">
-          <Setter Property="Visibility" Value="Collapsed" />
-          <Style.Triggers>
-            <MultiDataTrigger>
-              <MultiDataTrigger.Conditions>
-                <Condition Binding="{Binding Updates.ReadyVersion, Converter={StaticResource NullToCollapsed}}" Value="Visible" />
-                <Condition Binding="{Binding Updates.Dismissed}" Value="False" />
-              </MultiDataTrigger.Conditions>
-              <Setter Property="Visibility" Value="Visible" />
-            </MultiDataTrigger>
-          </Style.Triggers>
-        </Style>
-      </Border.Style>
-      <StackPanel>
-        <StackPanel Orientation="Horizontal">
-          <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource Brush.AccentSoft}">
-            <TextBlock Text="&#xE896;" FontFamily="{StaticResource Font.Icons}" FontSize="14" Foreground="{DynamicResource Brush.Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          </Border>
-          <TextBlock FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center">
-            <Run Text="VetPOS" /> <Run Text="{Binding Updates.ReadyVersion, Mode=OneWay}" /> <Run Text="is ready" />
-          </TextBlock>
-        </StackPanel>
-        <TextBlock Text="A backup is made, then VetPOS restarts (about a minute). Your open bill is kept." Style="{StaticResource Text.Secondary}"
-                   TextWrapping="Wrap" Margin="0,8,0,12" />
-        <StackPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Button.Primary}" Content="Restart now" Command="{Binding RestartToUpdateCommand}" Focusable="False" />
-          <Button Style="{StaticResource Button.Subtle}" Content="Later" Command="{Binding UpdateLaterCommand}" Margin="8,0,0,0" Focusable="False" />
-        </StackPanel>
-      </StackPanel>
     </Border>
 
     <!-- ───────── Floating AI button (every page) ───────── -->
